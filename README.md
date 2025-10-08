@@ -26,7 +26,7 @@ $ podman run --replace \
              -e RETRY_BACKOFF_SEC="0.5" \
              -e LOG_BODIES="true" \
              -e LOG_STREAM_MAX_BYTES="0" \
-             -e ALLOWED_ORIGINS="http://localhost:8111" \
+             -e ALLOWED_ORIGINS="http://127.0.0.1:8111" \
              --name genai-proxy \
              genai-proxy:latest
 
@@ -38,7 +38,7 @@ $ podman logs -f genai-proxy
 2025-10-03 07:20:12,683 INFO MAX_RETRIES=2
 2025-10-03 07:20:12,683 INFO RETRY_BACKOFF_SEC=0.5
 2025-10-03 07:20:12,683 INFO LOG_BODIES=True
-2025-10-03 07:20:12,683 INFO ALLOWED_ORIGINS=['http://localhost:8111']
+2025-10-03 07:20:12,683 INFO ALLOWED_ORIGINS=['http://127.0.0.1:8111']
 2025-10-03 07:20:12,683 INFO LOG_STREAM_MAX_BYTES=0
 INFO:     Started server process [1]
 INFO:     Waiting for application startup.
@@ -46,10 +46,53 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
 ```
 
+## Run as a systemd Service
+
+Create a file `/etc/systemd/system/genai-proxy.service` with the following content:
+
+```ini
+[Unit]
+Description=GenAI Proxy Container
+After=network.target
+
+[Service]
+Restart=always
+Environment=GENAI_SUBCRIPTION_NAME=some-subscription-name
+Environment=GENAI_API_KEY=some-api-key
+Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
+ExecStart=/usr/bin/podman run --replace \
+   -p 8111:8111 \
+   -e GENAI_SUBCRIPTION_NAME=${GENAI_SUBCRIPTION_NAME} \
+   -e GENAI_API_KEY=${GENAI_API_KEY} \
+   -e GENAI_BASE_URL=${GENAI_BASE_URL} \
+   -e REQUEST_TIMEOUT=60 \
+   -e MAX_RETRIES=2 \
+   -e RETRY_BACKOFF_SEC=0.5 \
+   -e LOG_BODIES=true \
+   -e LOG_STREAM_MAX_BYTES=0 \
+   -e ALLOWED_ORIGINS=http://127.0.0.1:8111 \
+   --name genai-proxy \
+   genai-proxy:latest
+ExecStop=/usr/bin/podman stop -t 10 genai-proxy
+ExecStopPost=/usr/bin/podman rm genai-proxy
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Usage:**
+1. Adjust the `Environment` variables.
+2. Reload systemd:  
+  `sudo systemctl daemon-reload`
+3. Start the service:  
+  `sudo systemctl start genai-proxy`
+4. (Optional) Enable on boot:  
+  `sudo systemctl enable genai-proxy`
+
 ## List models
 
 ```bash
-$ curl -X GET http://localhost:8111/v1/models | jq
+$ curl -X GET http://127.0.0.1:8111/v1/models | jq
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   570  100   570    0     0   309k      0 --:--:-- --:--:-- --:--:--  556k
@@ -105,7 +148,7 @@ $ curl -X GET http://localhost:8111/v1/models | jq
 ## Test chat completion using gtp-4.1
 
 ```bash
-$ curl -X POST http://localhost:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
+$ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
     "model": "gpt-4.1",
     "messages": [
       {"role": "system", "content": "Je bent een behulpzame assistent."},
@@ -210,11 +253,11 @@ $ curl -X POST http://localhost:8111/v1/chat/completions   -H "Content-Type: app
 ## test chat completion using gpt-5
 
 ```bash
-$ curl -X POST http://localhost:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
+$ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
     "model": "gpt-5",
     "messages": [
       {"role": "system", "content": "you are a python develper."},
-      {"role": "user", "content": "write a simple script in python to test the chat completion openai-compatible endpoint http://localhost:8111/v1/chat/completions (model gpt-5, no api_key needed)."}
+      {"role": "user", "content": "write a simple script in python to test the chat completion openai-compatible endpoint http://127.0.0.1:8111/v1/chat/completions (model gpt-5, no api_key needed)."}
     ],
     "max_completion_tokens": 4000
   }' | jq -r '.choices[0].message.content' 
@@ -228,7 +271,7 @@ import sys
 import requests
 
 
-def chat(prompt, url="http://localhost:8111/v1/chat/completions", model="gpt-5", stream=False):
+def chat(prompt, url="http://127.0.0.1:8111/v1/chat/completions", model="gpt-5", stream=False):
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -289,7 +332,7 @@ def chat(prompt, url="http://localhost:8111/v1/chat/completions", model="gpt-5",
 def main():
     ap = argparse.ArgumentParser(description="Test OpenAI-compatible chat completions endpoint")
     ap.add_argument("prompt", nargs="*", help="User prompt to send")
-    ap.add_argument("--url", default="http://localhost:8111/v1/chat/completions", help="Endpoint URL")
+    ap.add_argument("--url", default="http://127.0.0.1:8111/v1/chat/completions", help="Endpoint URL")
     ap.add_argument("--model", default="gpt-5", help="Model name")
     ap.add_argument("--stream", action="store_true", help="Use streaming responses")
     args = ap.parse_args()
@@ -316,7 +359,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
 
     "gpt_4": {
         "name": "genai gpt-4",
-        "url": "http://localhost:8111/v1",
+        "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": false,
         "thinking": true,
@@ -326,7 +369,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "gpt-4.1": {
       "name": "genai gpt-4.1",
-      "url": "http://localhost:8111/v1",
+      "url": "http://127.0.0.1:8111/v1",
       "toolCalling": true,
       "vision": false,
       "thinking": true,
@@ -336,7 +379,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "gpt-4.1-mini": {
       "name": "genai gpt-4.1-mini",
-      "url": "http://localhost:8111/v1",
+      "url": "http://127.0.0.1:8111/v1",
       "toolCalling": true,
       "vision": false,
       "maxInputTokens": 128000,
@@ -345,7 +388,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "gpt-4.1-nano": {
       "name": "genai gpt-4.1-nano",
-      "url": "http://localhost:8111/v1",
+      "url": "http://127.0.0.1:8111/v1",
       "toolCalling": true,
       "vision": false,
       "maxInputTokens": 4096,
@@ -354,7 +397,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "llama33_70b": {
         "name": "genai llama3.3-70b",
-        "url": "http://localhost:8111/v1",
+        "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": false,
         "maxInputTokens": 128000,
@@ -363,7 +406,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "llama32_90b_vision": {
         "name": "genai llama3.2-90b-vision",
-        "url": "http://localhost:8111/v1",
+        "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": true,
         "maxInputTokens": 4096,
@@ -372,7 +415,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "GPT-5": {
         "name": "genai GPT-5",
-        "url": "http://localhost:8111/v1",
+        "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": false,
         "maxInputTokens": 128000,
@@ -381,7 +424,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         },
     "GPT-5-mini": {
         "name": "genai GPT-5-mini",
-        "url": "http://localhost:8111/v1",
+        "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": false,
         "maxInputTokens": 128000,
