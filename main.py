@@ -127,6 +127,34 @@ async def _forward_request(
     # Lees body (voor GET/DELETE is dit doorgaans leeg)
     body: bytes = await request.body()
 
+    # ... vlak na: body = await request.body()
+    payload = _safe_json_loads(body)
+
+    # Normaliseer chat/completions voor GPT-5
+    if payload and path == "/v1/chat/completions":
+        model = str(payload.get("model", "")).lower()
+
+        # 1) Sta zowel 'gpt-5' als varianten toe
+        if model.startswith("gpt-5"):
+            # 2) Vertaal max_tokens / max_output_tokens -> max_completion_tokens
+            if "max_completion_tokens" not in payload:
+                if "max_output_tokens" in payload:
+                    payload["max_completion_tokens"] = payload.pop("max_output_tokens")
+                elif "max_tokens" in payload:
+                    payload["max_completion_tokens"] = payload.pop("max_tokens")
+                else:
+                    # 3) Geef desnoods een sane default mee (optioneel)
+                    payload["max_completion_tokens"] = 128000
+
+            payload["temperature"] = 1
+             # 4) Zorg dat stream Accept klopt (optioneel, helpt bij kieskeurige upstreams)
+            if payload.get("stream") is True:
+                headers["Accept"] = "text/event-stream"
+
+            # 5) Schrijf body terug
+            body = json.dumps(payload).encode("utf-8")
+
+
     # Request logging
     req_log = {
         "id": req_id,
