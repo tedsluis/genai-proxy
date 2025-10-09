@@ -20,8 +20,6 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 | GET    | `/v1/health`        | Forwards to upstream `/v1/health`.
 | GET    | `/v1/models`        | Local static OpenAI-compatible model list (no upstream call).
 | POST   | `/v1/chat/completions` | Forwards to upstream with optional SSE stream passthrough; normalizes payload for `gpt-5`.
-| POST   | `/v1/embeddings`    | Forwards to upstream.
-| POST   | `/v1/semantic_search` | Forwards to upstream.
 
 ### How it works (request flow)
 

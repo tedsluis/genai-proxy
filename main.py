@@ -380,11 +380,4 @@ async def list_models(request: Request):
 async def chat_completions(request: Request):
     return await _forward_request("POST", "/v1/chat/completions", request, allow_stream=True)
 
-@app.post("/v1/embeddings")
-async def embeddings(request: Request):
-    return await _forward_request("POST", "/v1/embeddings", request)
-
-@app.post("/v1/semantic_search")
-async def semantic_search(request: Request):
-    return await _forward_request("POST", "/v1/semantic_search", request)
 
