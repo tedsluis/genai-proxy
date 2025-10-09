@@ -127,7 +127,7 @@ async def _forward_request(
     # Lees body (voor GET/DELETE is dit doorgaans leeg)
     body: bytes = await request.body()
 
-    # ... vlak na: body = await request.body()
+    # Parse body and make changess
     payload = _safe_json_loads(body)
 
     # Normaliseer chat/completions voor GPT-5

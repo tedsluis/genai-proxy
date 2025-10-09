@@ -1,6 +1,100 @@
 # genai proxy
 
-A openai compatible proxy to add an authentication header with api_key for a corperated openai endpoint.
+OpenAI compatible proxy
+
+## Overview and Functionality
+
+This project provides an OpenAI-compatible HTTP proxy that injects a corporate subscription header with an API key and forwards requests to a configured upstream OpenAI compatible endpoint. It provides extensive logging and error handling and it normalizes certain request fields for the “gpt-5” family, supports Server-Sent Events (SSE) streaming passthrough, and offers detailed request/response logging with retry logic.
+
+### Architecture
+
+![genai-proxy architecture](images/genai-proxy-architecture.svg)
+
+
+### Endpoints
+
+| Method | Path                | Behavior |
+|--------|---------------------|----------|
+| GET    | `/`                 | Returns proxy metadata (name, version, upstream).
+| GET    | `/health`           | Probes `GENAI_BASE_URL/`; returns text or 502 on error.
+| GET    | `/v1/health`        | Forwards to upstream `/v1/health`.
+| GET    | `/v1/models`        | Local static OpenAI-compatible model list (no upstream call).
+| POST   | `/v1/chat/completions` | Forwards to upstream with optional SSE stream passthrough; normalizes payload for `gpt-5`.
+| POST   | `/v1/embeddings`    | Forwards to upstream.
+| POST   | `/v1/semantic_search` | Forwards to upstream.
+
+### How it works (request flow)
+
+- Parses incoming request and body, generates/request-carries `X-Request-ID`.
+- Builds forward headers, injecting the subscription header: name=`GENAI_SUBCRIPTION_NAME`, value=`GENAI_API_KEY`.
+- Redacts sensitive headers from logs (authorization, proxy-authorization, and the subscription header name).
+- Normalizes `/v1/chat/completions` for `gpt-5*` models:
+  - Converts `max_tokens` to `max_completion_tokens`.
+  - Defaults `max_completion_tokens` to 128000 if `max_tokens` or `max_completion_tokens` is missing.
+  - Sets `temperature` to 1 (`temperature` less then 1 is not supported for gpt-5).
+  - Adds `Accept: text/event-stream` if `stream=true`.
+- Performs the upstream request using `httpx.AsyncClient`.
+- For streaming, passes bytes through while optionally logging a preview of the first N bytes.
+- Returns non-stream responses with `X-Upstream-Status` and `X-Request-ID` headers.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GENAI_SUBCRIPTION_NAME` | (required) | HTTP header name used to send the API key (subscription).
+| `GENAI_API_KEY` | (required) | Subscription key value placed in the above header.
+| `GENAI_BASE_URL` | (required) | Upstream base URL (e.g., `https://gateway.apiportal.genai.nl/genai`).
+| `REQUEST_TIMEOUT` | `60` | Per-request timeout (seconds).
+| `MAX_RETRIES` | `2` | Number of retry attempts on retryable errors.
+| `RETRY_BACKOFF_SEC` | `0.5` | Base backoff; actual backoff = base × 2^attempt.
+| `LOG_BODIES` | `true` | If true, logs request/response bodies (JSON or raw preview).
+| `ALLOWED_ORIGINS` | `` | Comma-separated origins to allow via CORS (if set, CORS is enabled).
+| `LOG_STREAM_MAX_BYTES` | `0` | If >0, logs up to N bytes of streamed chunks.
+
+### CORS
+
+- Enabled only if `ALLOWED_ORIGINS` is set (comma-separated list).
+- Allows all methods and headers; credentials allowed.
+
+### Logging
+
+| Event | Level | Fields |
+|---|---|---|
+| Startup config | INFO | `SUBCRIPTION_NAME` (name), masked key (first 4 chars + asterisks), `GENAI_BASE_URL`, `REQUEST_TIMEOUT`, `MAX_RETRIES`, `RETRY_BACKOFF_SEC`, `LOG_BODIES`, `ALLOWED_ORIGINS`, `LOG_STREAM_MAX_BYTES`.
+| Request | INFO | `id`, `method`, `path`, `upstream`, redacted `headers`, `body` (if `LOG_BODIES`).
+| Response (JSON) | INFO | `id`, `status`, `duration_ms`, redacted `headers`, `body` (if `LOG_BODIES`).
+| Response (non-JSON) | INFO | `id`, `status`, `duration_ms`, redacted `headers`, `body_length` and `content_type` (if `LOG_BODIES`).
+| Streaming start | INFO | `id`, `status`, `duration_ms`, redacted `headers`, `streaming=true`.
+| Streaming chunk | INFO | `id`, `bytes`, `preview` (up to `LOG_STREAM_MAX_BYTES`).
+| Retry | WARNING | `id`, `retry` number, `backoff_sec`, `error` type/message.
+| Final error | ERROR | `{ error: { type: "proxy_error", message, request_id, upstream } }`.
+
+### Error handling
+
+| Condition | Retry? | Result |
+|---|---|---|
+| `httpx.ConnectError` | Yes (up to `MAX_RETRIES`) | Exponential backoff, then `502` with `proxy_error` JSON.
+| `httpx.ReadTimeout` | Yes | Same as above.
+| `httpx.RemoteProtocolError` | Yes | Same as above.
+| `httpx.RequestError` (other) | No | Immediate `502` with `proxy_error` JSON.
+| Upstream non-200 | No special handling | Passthrough status/body; adds `X-Upstream-Status`, `X-Request-ID`.
+
+### Response headers
+
+- Non-stream responses include `X-Upstream-Status` and `X-Request-ID`.
+- Stream responses include `X-Request-ID` and mirror `Content-Type` (defaults to `text/event-stream; charset=utf-8`).
+
+### Sequence diagram (text)
+
+```
+Client -> Proxy: HTTP request
+Proxy -> Proxy: Log request, redact sensitive headers
+Proxy -> Proxy: Normalize payload (if model starts with gpt-5)
+Proxy -> Upstream: Forward request via httpx
+Upstream -> Proxy: JSON or SSE stream
+Proxy -> Proxy: Log response (and stream chunks preview if enabled)
+Proxy -> Client: Return response (+ X-Request-ID, X-Upstream-Status when applicable)
+```
 
 ## Build container image
 
@@ -130,13 +224,13 @@ $ curl -X GET http://127.0.0.1:8111/v1/models | jq
       "owned_by": "genai"
     },
     {
-      "id": "GPT-5",
+      "id": "gpt-5",
       "object": "model",
       "created": 1759432253,
       "owned_by": "genai"
     },
     {
-      "id": "GPT-5-mini",
+      "id": "gpt-5-mini",
       "object": "model",
       "created": 1759432253,
       "owned_by": "genai"
@@ -145,7 +239,7 @@ $ curl -X GET http://127.0.0.1:8111/v1/models | jq
 }
 ```
 
-## Test chat completion using gtp-4.1
+## Test chat completion using gpt-4.1
 
 ```bash
 $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
@@ -347,7 +441,7 @@ if __name__ == "__main__":
 
 ## Use genai models in VSCode Copilot
 
-note: openai-compatible provider for copilot is available in VSCode(-insiders) 1.105.0 and above. 
+note: The OpenAI-compatible provider for copilot is available in VSCode(-insiders) 1.105.0 and above. 
 
 Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Chat**
 
@@ -413,7 +507,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         "maxOutputTokens": 1024,
         "requiresAPIKey": false
         },
-    "GPT-5": {
+    "gpt-5": {
         "name": "genai GPT-5",
         "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
@@ -422,7 +516,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         "maxOutputTokens": 4096,
         "requiresAPIKey": false
         },
-    "GPT-5-mini": {
+    "gpt-5-mini": {
         "name": "genai GPT-5-mini",
         "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,

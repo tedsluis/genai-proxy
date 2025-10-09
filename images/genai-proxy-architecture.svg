@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+  <title>genai-proxy Architecture Diagram</title>
+  <desc>Client -> FastAPI (GenAI Proxy) -> httpx.AsyncClient -> Upstream (GENAI_BASE_URL) with logging/CORS, retries/streaming, JSON/stream, and response passthrough</desc>
+
+  <!-- Definitions -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" />
+    </marker>
+    <marker id="arrowhead-rev" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+      <polygon points="10 0, 0 3.5, 10 7" />
+    </marker>
+    <style><![CDATA[
+      .box { fill: #ffffff; stroke: #1f2937; stroke-width: 2; rx: 10; }
+      .box-shadow { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2)); }
+      .label { font-family: Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 16px; fill: #111827; }
+      .title { font-weight: 700; font-size: 18px; }
+      .subtitle { font-weight: 500; font-size: 16px; fill: #374151; }
+      .note { font-size: 15px; fill: #374151; }
+      .small { font-size: 14px; fill: #374151; }
+      .muted { fill: #6b7280; font-size: 14px; }
+      .line { stroke: #1f2937; stroke-width: 2; }
+      .dashed { stroke-dasharray: 6 6; }
+      .arrow { stroke: #1f2937; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-rev { stroke: #1f2937; stroke-width: 2; fill: none; marker-end: url(#arrowhead-rev); }
+      .pill { fill: #f3f4f6; stroke: #d1d5db; stroke-width: 1; rx: 6; }
+      .pill-text { font-size: 13px; fill: #111827; }
+    ]]></style>
+  </defs>
+
+  <!-- Boxes -->
+  <g class="box-shadow">
+    <rect class="box" x="120" y="80" width="220" height="70" />
+    <text class="label title" x="230" y="110" text-anchor="middle">Client</text>
+  </g>
+
+  <g class="box-shadow">
+    <rect class="box" x="400" y="80" width="220" height="70" />
+    <text class="label title" x="510" y="110" text-anchor="middle">FastAPI</text>
+    <text class="label subtitle" x="510" y="130" text-anchor="middle">(GenAI Proxy)</text>
+  </g>
+
+  <g class="box-shadow">
+    <rect class="box" x="680" y="80" width="220" height="70" />
+    <text class="label title" x="790" y="110" text-anchor="middle">httpx.AsyncClient</text>
+  </g>
+
+  <g class="box-shadow">
+    <rect class="box" x="960" y="80" width="220" height="70" />
+    <text class="label title" x="1070" y="110" text-anchor="middle">Upstream</text>
+    <text class="label subtitle" x="1070" y="130" text-anchor="middle">(GENAI_BASE_URL)</text>
+  </g>
+
+  <!-- Top arrows between boxes -->
+  <path class="arrow" d="M 340 115 L 400 115" />
+  <path class="arrow" d="M 620 115 L 680 115" />
+  <path class="arrow" d="M 900 115 L 960 115" />
+
+  <!-- Vertical guide lines under each box -->
+  <line class="line dashed" x1="230" y1="150" x2="230" y2="360" />
+  <line class="line dashed" x1="510" y1="150" x2="510" y2="360" />
+  <line class="line dashed" x1="790" y1="150" x2="790" y2="360" />
+  <line class="line dashed" x1="1070" y1="150" x2="1070" y2="360" />
+
+  <!-- Feature callouts per column -->
+  <!-- FastAPI: logging, CORS -->
+  <g>
+    <rect class="pill" x="430" y="190" width="160" height="28" />
+    <text class="pill-text" x="510" y="209" text-anchor="middle">logging, CORS</text>
+
+    <rect class="pill" x="430" y="226" width="160" height="28" />
+    <text class="pill-text" x="510" y="245" text-anchor="middle">subscription header</text>
+
+    <rect class="pill" x="430" y="262" width="160" height="28" />
+    <text class="pill-text" x="510" y="281" text-anchor="middle">X-Request-ID</text>
+  </g>
+
+  <!-- httpx.AsyncClient: retries, streaming -->
+  <g>
+    <rect class="pill" x="710" y="190" width="160" height="28" />
+    <text class="pill-text" x="790" y="209" text-anchor="middle">retries, streaming</text>
+
+    <rect class="pill" x="710" y="226" width="160" height="28" />
+    <text class="pill-text" x="790" y="245" text-anchor="middle">timeout &amp; backoff</text>
+  </g>
+
+  <!-- Upstream: JSON/stream -->
+  <g>
+    <rect class="pill" x="990" y="190" width="160" height="28" />
+    <text class="pill-text" x="1070" y="209" text-anchor="middle">JSON / stream</text>
+  </g>
+
+  <!-- Bottom response passthrough arrow -->
+  <path class="arrow-rev" d="M 1060 360 L 230 360" />
+  <text class="label small" x="645" y="350" text-anchor="middle">response passthrough</text>
+
+  <!-- Top caption -->
+  <text class="label muted" x="600" y="36" text-anchor="middle">Request flow →</text>
+</svg>
