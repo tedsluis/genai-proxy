@@ -445,7 +445,7 @@ note: The OpenAI-compatible provider for copilot is available in VSCode(-insider
 
 Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Chat**
 
-![alt text](images/image01.png)
+![alt text](images/image02.png)
 
 ```json
 {
@@ -531,4 +531,4 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
 
 The genai models are available in copilot **model** the drop down menu:
 
-![alt text](images/image02.png)
+![alt text](images/image01.png)
