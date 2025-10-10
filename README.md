@@ -24,7 +24,7 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 ### How it works (request flow)
 
 - Parses incoming request and body, generates/request-carries `X-Request-ID`.
-- Builds forward headers, injecting the subscription header: name=`GENAI_SUBCRIPTION_NAME`, value=`GENAI_API_KEY`.
+- Builds forward headers, injecting the subscription header: name=`GENAI_SUBSCRIPTION_NAME`, value=`GENAI_API_KEY`.
 - Redacts sensitive headers from logs (authorization, proxy-authorization, and the subscription header name).
 - Normalizes `/v1/chat/completions` for `gpt-5*` models:
   - Converts `max_tokens` to `max_completion_tokens`.
@@ -39,7 +39,7 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `GENAI_SUBCRIPTION_NAME` | (required) | HTTP header name used to send the API key (subscription).
+| `GENAI_SUBSCRIPTION_NAME` | (required) | HTTP header name used to send the API key (subscription).
 | `GENAI_API_KEY` | (required) | Subscription key value placed in the above header.
 | `GENAI_BASE_URL` | (required) | Upstream base URL (e.g., `https://gateway.apiportal.genai.nl/genai`).
 | `REQUEST_TIMEOUT` | `60` | Per-request timeout (seconds).
@@ -58,7 +58,7 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 
 | Event | Level | Fields |
 |---|---|---|
-| Startup config | INFO | `SUBCRIPTION_NAME` (name), masked key (first 4 chars + asterisks), `GENAI_BASE_URL`, `REQUEST_TIMEOUT`, `MAX_RETRIES`, `RETRY_BACKOFF_SEC`, `LOG_BODIES`, `ALLOWED_ORIGINS`, `LOG_STREAM_MAX_BYTES`.
+| Startup config | INFO | `SUBSCRIPTION_NAME` (name), masked key (first 4 chars + asterisks), `GENAI_BASE_URL`, `REQUEST_TIMEOUT`, `MAX_RETRIES`, `RETRY_BACKOFF_SEC`, `LOG_BODIES`, `ALLOWED_ORIGINS`, `LOG_STREAM_MAX_BYTES`.
 | Request | INFO | `id`, `method`, `path`, `upstream`, redacted `headers`, `body` (if `LOG_BODIES`).
 | Response (JSON) | INFO | `id`, `status`, `duration_ms`, redacted `headers`, `body` (if `LOG_BODIES`).
 | Response (non-JSON) | INFO | `id`, `status`, `duration_ms`, redacted `headers`, `body_length` and `content_type` (if `LOG_BODIES`).
@@ -103,14 +103,14 @@ $ podman build -t genai-proxy:latest -f Containerfile .
 ## Run proxy
 
 ```bash
-$ export GENAI_SUBCRIPTION_NAME=some-subscription-name
+$ export GENAI_SUBSCRIPTION_NAME=some-subscription-name
 $ export GENAI_API_KEY=some-api-key
 $ export GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 
 $ podman run --replace \
              -d \
              -p 8111:8111 \
-             -e GENAI_SUBCRIPTION_NAME="${GENAI_SUBCRIPTION_NAME}" \
+             -e GENAI_SUBSCRIPTION_NAME="${GENAI_SUBSCRIPTION_NAME}" \
              -e GENAI_API_KEY="${GENAI_API_KEY}" \
              -e GENAI_BASE_URL="${GENAI_BASE_URL}" \
              -e REQUEST_TIMEOUT="60" \
@@ -123,7 +123,7 @@ $ podman run --replace \
              genai-proxy:latest
 
 $ podman logs -f genai-proxy
-2025-10-03 07:20:12,683 INFO SUBCRIPTION_NAME=*******************
+2025-10-03 07:20:12,683 INFO SUBSCRIPTION_NAME=*******************
 2025-10-03 07:20:12,683 INFO SUBSCRIPTION_KEY=711b*******************
 2025-10-03 07:20:12,683 INFO GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 2025-10-03 07:20:12,683 INFO REQUEST_TIMEOUT=60.0
@@ -149,12 +149,12 @@ After=network.target
 
 [Service]
 Restart=always
-Environment=GENAI_SUBCRIPTION_NAME=some-subscription-name
+Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
 Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 ExecStart=/usr/bin/podman run --replace \
    -p 8111:8111 \
-   -e GENAI_SUBCRIPTION_NAME=${GENAI_SUBCRIPTION_NAME} \
+   -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
    -e GENAI_API_KEY=${GENAI_API_KEY} \
    -e GENAI_BASE_URL=${GENAI_BASE_URL} \
    -e REQUEST_TIMEOUT=60 \
@@ -243,8 +243,8 @@ $ curl -X GET http://127.0.0.1:8111/v1/models | jq
 $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
     "model": "gpt-4.1",
     "messages": [
-      {"role": "system", "content": "Je bent een behulpzame assistent."},
-      {"role": "user", "content": "Geef me één zin over openai."}
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Give me one sentence about OpenAI."}
     ],
     "temperature": 0.2,
     "max_tokens": 64
@@ -260,7 +260,7 @@ $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: app
       "index": 0,
       "logprobs": null,
       "message": {
-        "content": "OpenAI is een onderzoeksorganisatie die zich richt op het ontwikkelen en bevorderen van kunstmatige intelligentie op een veilige en verantwoorde manier.",
+  "content": "OpenAI is a research organization focused on developing and promoting artificial intelligence in a safe and responsible way.",
         "refusal": null,
         "role": "assistant",
         "annotations": [],
@@ -506,7 +506,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         "requiresAPIKey": false
         },
     "gpt-5": {
-        "name": "genai GPT-5",
+        "name": "genai gpt-5",
         "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": false,
@@ -515,7 +515,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
         "requiresAPIKey": false
         },
     "gpt-5-mini": {
-        "name": "genai GPT-5-mini",
+        "name": "genai gpt-5-mini",
         "url": "http://127.0.0.1:8111/v1",
         "toolCalling": true,
         "vision": false,

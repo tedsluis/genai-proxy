@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # =========================
 # Config
 # =========================
-SUBCRIPTION_NAME = os.getenv("GENAI_SUBCRIPTION_NAME")
+SUBSCRIPTION_NAME = os.getenv("GENAI_SUBSCRIPTION_NAME")
 GENAI_BASE_URL = os.getenv("GENAI_BASE_URL")
 SUBSCRIPTION_KEY = os.getenv("GENAI_API_KEY")
 REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "60"))
@@ -21,10 +21,10 @@ MAX_RETRIES = int(os.getenv("MAX_RETRIES", "2"))
 RETRY_BACKOFF_SEC = float(os.getenv("RETRY_BACKOFF_SEC", "0.5"))
 LOG_BODIES = os.getenv("LOG_BODIES", "true").lower() in ("1", "true", "yes")
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
-# Voor streams loggen we standaard geen body; optioneel kun je de eerste N bytes loggen:
+# For streams, we do not log the body by default; optionally you can log the first N bytes:
 LOG_STREAM_MAX_BYTES = int(os.getenv("LOG_STREAM_MAX_BYTES", "0"))
 
-SENSITIVE_HEADER_KEYS = {"authorization", "proxy-authorization", SUBCRIPTION_NAME.lower() if SUBCRIPTION_NAME else ""}
+SENSITIVE_HEADER_KEYS = {"authorization", "proxy-authorization", SUBSCRIPTION_NAME.lower() if SUBSCRIPTION_NAME else ""}
 
 # =========================
 # Logging
@@ -36,7 +36,7 @@ _handler.setFormatter(_formatter)
 logger.addHandler(_handler)
 logger.setLevel(logging.INFO)
 
-logger.info(f"SUBCRIPTION_NAME={SUBCRIPTION_NAME}")
+logger.info(f"SUBSCRIPTION_NAME={SUBSCRIPTION_NAME}")
 logger.info(f"SUBSCRIPTION_KEY={SUBSCRIPTION_KEY[:4] + '*******************' if SUBSCRIPTION_KEY else None}")
 logger.info(f"GENAI_BASE_URL={GENAI_BASE_URL}")
 logger.info(f"REQUEST_TIMEOUT={REQUEST_TIMEOUT}")
@@ -91,7 +91,7 @@ def _build_forward_headers(incoming: Dict[str, str]) -> Dict[str, str]:
         "Content-Type": incoming.get("content-type", "application/json"),
     }
     if SUBSCRIPTION_KEY:
-        headers[SUBCRIPTION_NAME] = SUBSCRIPTION_KEY
+        headers[SUBSCRIPTION_NAME] = SUBSCRIPTION_KEY
 
     skip = {"content-length", "host", "connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade"}
     for k, v in incoming.items():
@@ -99,7 +99,7 @@ def _build_forward_headers(incoming: Dict[str, str]) -> Dict[str, str]:
         if kl in skip:
             continue
         if kl in SENSITIVE_HEADER_KEYS:
-            # nooit binnenkomende gevoelige headers doorzetten
+            # never forward incoming sensitive headers
             continue
         headers[k] = v
     return headers
@@ -116,7 +116,7 @@ async def _forward_request(
     allow_stream: bool = False
 ) -> Response:
     """
-    Algemene forwarder met logging, retries en (optionele) SSE-stream passthrough.
+    General forwarder with logging, retries, and optional SSE stream passthrough.
     """
     client: httpx.AsyncClient = app.state.client
     url = _upstream_url(path, request.url.query)
@@ -124,34 +124,34 @@ async def _forward_request(
     headers = _build_forward_headers(incoming_headers)
     req_id = incoming_headers.get("X-Request-ID") or str(uuid.uuid4())
 
-    # Lees body (voor GET/DELETE is dit doorgaans leeg)
+    # Read body (for GET/DELETE this is typically empty)
     body: bytes = await request.body()
 
-    # Parse body and make changess
+    # Parse body and make changes
     payload = _safe_json_loads(body)
 
-    # Normaliseer chat/completions voor GPT-5
+    # Normalize chat/completions for gpt-5
     if payload and path == "/v1/chat/completions":
         model = str(payload.get("model", "")).lower()
 
-        # 1) Sta zowel 'gpt-5' als varianten toe
+        # 1) Allow both 'gpt-5' and its variants
         if model.startswith("gpt-5"):
-            # 2) Vertaal max_tokens / max_output_tokens -> max_completion_tokens
+            # 2) Translate max_tokens / max_output_tokens -> max_completion_tokens
             if "max_completion_tokens" not in payload:
                 if "max_output_tokens" in payload:
                     payload["max_completion_tokens"] = payload.pop("max_output_tokens")
                 elif "max_tokens" in payload:
                     payload["max_completion_tokens"] = payload.pop("max_tokens")
                 else:
-                    # 3) Geef desnoods een sane default mee (optioneel)
+                    # 3) Provide a sensible default if needed (optional)
                     payload["max_completion_tokens"] = 128000
 
             payload["temperature"] = 1
-             # 4) Zorg dat stream Accept klopt (optioneel, helpt bij kieskeurige upstreams)
+             # 4) Ensure stream Accept is correct (optional, helps with picky upstreams)
             if payload.get("stream") is True:
                 headers["Accept"] = "text/event-stream"
 
-            # 5) Schrijf body terug
+            # 5) Write back the body
             body = json.dumps(payload).encode("utf-8")
 
 
@@ -168,7 +168,7 @@ async def _forward_request(
         req_log["body"] = parsed if parsed is not None else (body.decode("utf-8", errors="ignore") if body else "")
     logger.info(f"REQUEST {json.dumps(req_log)}")
 
-    # Stream-detectie voor chat-completions
+    # Stream detection for chat-completions
     wants_stream = False
     if allow_stream:
         payload = _safe_json_loads(body)
@@ -179,10 +179,10 @@ async def _forward_request(
 
     for attempt in range(MAX_RETRIES + 1):
         try:
-            from typing import AsyncIterator  # bovenin bestand heb je dit al
+            from typing import AsyncIterator  # you already have this at the top of the file
 
             if wants_stream:
-                # Open de stream, maar NIET met 'async with'
+                # Open the stream, but NOT with 'async with'
                 req = client.build_request(method, url, headers=headers, content=body)
                 resp = await client.send(req, stream=True)
 
@@ -219,13 +219,13 @@ async def _forward_request(
                                 logged += take
                             yield chunk
                     finally:
-                        # Sluit de upstream pas na het streamen
+                        # Close the upstream only after streaming
                         await resp.aclose()
 
                 return StreamingResponse(iter_bytes(), status_code=resp.status_code, headers=passthrough_headers)
 
 
-            # Non-stream pad
+            # Non-stream path
             resp = await client.request(method, url, headers=headers, content=(None if method in {"GET", "DELETE"} else body))
 
             # Response logging + body
@@ -251,13 +251,13 @@ async def _forward_request(
                         "duration_ms": int((time.time() - start) * 1000),
                         "headers": resp_hdrs
                     }))
-                # Teruggeven als JSON
+                # Return as JSON
                 return JSONResponse(status_code=resp.status_code, content=resp_json, headers={
                     "X-Upstream-Status": str(resp.status_code),
                     "X-Request-ID": req_id
                 })
             else:
-                # Niet-JSON response: log lengte i.p.v. hele body (kan binaire data zijn)
+                # Non-JSON response: log length instead of the entire body (may be binary data)
                 if LOG_BODIES:
                     logger.info(json.dumps({
                         "id": req_id,
@@ -297,7 +297,7 @@ async def _forward_request(
             last_exc = exc
             break
 
-    # Exhausted / niet-retriable error
+    # Exhausted / non-retriable error
     err_payload = {
         "error": {
             "type": "proxy_error",
@@ -317,7 +317,7 @@ async def _forward_request(
 async def root():
     return {"name": "GenAI Proxy", "version": "1.0.0", "upstream": GENAI_BASE_URL}
 
-# Health (root naar /genai/)
+# Health (root to /genai/)
 @app.get("/health")
 async def health_root():
     client: httpx.AsyncClient = app.state.client
@@ -346,7 +346,7 @@ async def health_v1(request: Request):
 
 @app.get("/v1/models")
 async def list_models(request: Request):
-    # Lokale, OpenAI-compatibele response (zonder upstream-call)
+    # Local, OpenAI-compatible response (without upstream call)
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     now = int(time.time())
 
@@ -356,13 +356,13 @@ async def list_models(request: Request):
         {"id": "gpt-4.1-nano",     "object": "model", "created": now, "owned_by": "genai"},
         {"id": "llama33_70b",      "object": "model", "created": now, "owned_by": "genai"},
         {"id": "llama32_90b_vision","object": "model","created": now, "owned_by": "genai"},
-        {"id": "GPT-5",            "object": "model", "created": now, "owned_by": "genai"},
-        {"id": "GPT-5-mini",       "object": "model", "created": now, "owned_by": "genai"},
+        {"id": "gpt-5",            "object": "model", "created": now, "owned_by": "genai"},
+        {"id": "gpt-5-mini",       "object": "model", "created": now, "owned_by": "genai"},
     ]
 
     resp = {"object": "list", "data": models}
 
-    # Logging in dezelfde stijl als de proxy
+    # Logging in the same style as the proxy
     logger.info(json.dumps({
         "id": req_id,
         "method": "GET",
@@ -375,7 +375,7 @@ async def list_models(request: Request):
     return JSONResponse(status_code=200, content=resp, headers={"X-Request-ID": req_id})
 
 
-# OpenAI-compatibele endpoints
+# OpenAI-compatible endpoints
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
     return await _forward_request("POST", "/v1/chat/completions", request, allow_stream=True)

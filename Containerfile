@@ -14,7 +14,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     # Defaults: pas eventueel aan via -e bij podman run
-    GENAI_SUBCRIPTION_NAME=some-subscription-name \
+    GENAI_SUBSCRIPTION_NAME=some-subscription-name \
     GENAI_API_KEY=some-api-key \
     GENAI_BASE_URL="https://genai.example.com" \
     REQUEST_TIMEOUT="60" \

@@ -4,12 +4,12 @@ After=network.target
 
 [Service]
 Restart=always
-Environment=GENAI_SUBCRIPTION_NAME=some-subscription-name
+Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
 Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 ExecStart=/usr/bin/podman run --replace \
     -p 8111:8111 \
-    -e GENAI_SUBCRIPTION_NAME=${GENAI_SUBCRIPTION_NAME} \
+    -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
     -e GENAI_API_KEY=${GENAI_API_KEY} \
     -e GENAI_BASE_URL=${GENAI_BASE_URL} \
     -e REQUEST_TIMEOUT=60 \
