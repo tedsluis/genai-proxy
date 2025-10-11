@@ -6,6 +6,12 @@ OpenAI compatible proxy
 
 This project provides an OpenAI-compatible HTTP proxy that injects a corporate subscription header with an API key and forwards requests to a configured upstream OpenAI compatible endpoint. It provides extensive logging and error handling and it normalizes certain request fields for the “gpt-5” family, supports Server-Sent Events (SSE) streaming passthrough, and offers detailed request/response logging with retry logic.
 
+Clients that can benefit from an OpenAI-compatible API include:
+- VSCode Copilot
+- Codex
+- Open WebUI
+- Open Code
+
 ### Architecture
 
 ![genai-proxy architecture](images/genai-proxy-architecture.svg)
@@ -95,7 +101,7 @@ $ export GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 
 $ podman run --replace \
              -d \
-             -p 8111:8111 \
+             -p 127.0.0.1:8111:8111 \
              -e GENAI_SUBSCRIPTION_NAME="${GENAI_SUBSCRIPTION_NAME}" \
              -e GENAI_API_KEY="${GENAI_API_KEY}" \
              -e GENAI_BASE_URL="${GENAI_BASE_URL}" \
@@ -139,7 +145,7 @@ Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
 Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 ExecStart=/usr/bin/podman run --replace \
-   -p 8111:8111 \
+   -p 127.0.0.1:8111:8111 \
    -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
    -e GENAI_API_KEY=${GENAI_API_KEY} \
    -e GENAI_BASE_URL=${GENAI_BASE_URL} \
@@ -166,6 +172,14 @@ WantedBy=multi-user.target
   `sudo systemctl start genai-proxy`
 4. (Optional) Enable on boot:  
   `sudo systemctl enable genai-proxy`
+
+## Accessibilty 
+
+The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
+
+- Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
+- Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
+
 
 ## List models
 
