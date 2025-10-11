@@ -23,17 +23,8 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 
 ### How it works (request flow)
 
-- Parses incoming request and body, generates/request-carries `X-Request-ID`.
-- Builds forward headers, injecting the subscription header: name=`GENAI_SUBSCRIPTION_NAME`, value=`GENAI_API_KEY`.
-- Redacts sensitive headers from logs (authorization, proxy-authorization, and the subscription header name).
-- Normalizes `/v1/chat/completions` for `gpt-5*` models:
-  - Converts `max_tokens` to `max_completion_tokens`.
-  - Defaults `max_completion_tokens` to 128000 if `max_tokens` or `max_completion_tokens` is missing.
-  - Sets `temperature` to 1 (`temperature` less then 1 is not supported for gpt-5).
-  - Adds `Accept: text/event-stream` if `stream=true`.
-- Performs the upstream request using `httpx.AsyncClient`.
-- For streaming, passes bytes through while optionally logging a preview of the first N bytes.
-- Returns non-stream responses with `X-Upstream-Status` and `X-Request-ID` headers.
+![How it works — Request Flow](images/genai-proxy-request-flow.svg)
+
 
 ### Configuration
 
@@ -82,7 +73,7 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 - Non-stream responses include `X-Upstream-Status` and `X-Request-ID`.
 - Stream responses include `X-Request-ID` and mirror `Content-Type` (defaults to `text/event-stream; charset=utf-8`).
 
-### Sequence diagram (text)
+### Sequence diagram
 
 ![genai-proxy sequence](images/genai-proxy-sequence.svg)
 
