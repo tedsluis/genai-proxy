@@ -84,17 +84,12 @@ This project provides an OpenAI-compatible HTTP proxy that injects a corporate s
 
 ### Sequence diagram (text)
 
-```
-Client -> Proxy: HTTP request
-Proxy -> Proxy: Log request, redact sensitive headers
-Proxy -> Proxy: Normalize payload (if model starts with gpt-5)
-Proxy -> Upstream: Forward request via httpx
-Upstream -> Proxy: JSON or SSE stream
-Proxy -> Proxy: Log response (and stream chunks preview if enabled)
-Proxy -> Client: Return response (+ X-Request-ID, X-Upstream-Status when applicable)
-```
+![genai-proxy sequence](images/genai-proxy-sequence.svg)
+
 
 ## Build container image
+
+note: **Podman** and **Docker** are largely interchangeable for most use cases: both follow OCI standards and share image formats, registries, volume semantics, and networking, so typical workflows are compatible. Unlike Docker, Podman is daemonless—it runs containers directly as regular processes (well-suited to rootless operation) without a central background service.
 
 ```bash
 $ podman build -t genai-proxy:latest -f Containerfile .
@@ -343,6 +338,8 @@ $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: app
 ```
 
 ## test chat completion using gpt-5
+
+An example to create some python code.
 
 ```bash
 $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{

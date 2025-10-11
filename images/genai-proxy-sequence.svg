@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+  <title>genai-proxy Sequence Diagram</title>
+  <desc>Client -> Proxy -> Upstream request/response sequence with internal proxy steps for logging, redaction, normalization, and response headers.</desc>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" />
+    </marker>
+    <style><![CDATA[
+      .label { font-family: Inter, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; fill: #111827; }
+      .title { font-weight: 700; font-size: 22px; }
+      .participant { font-weight: 700; font-size: 16px; }
+      .note { font-size: 14px; fill: #374151; }
+      .muted { font-size: 13px; fill: #6b7280; }
+      .lifeline { stroke: #9ca3af; stroke-width: 2; stroke-dasharray: 6 6; }
+      .box { fill: #ffffff; stroke: #1f2937; stroke-width: 2; rx: 8; }
+      .activation { fill: #e5e7eb; stroke: #9ca3af; stroke-width: 1; }
+      .arrow { stroke: #1f2937; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    ]]></style>
+  </defs>
+
+  <!-- Title -->
+  <text class="label title" x="600" y="36" text-anchor="middle">genai-proxy — Request/Response Sequence</text>
+
+  <!-- Participants -->
+  <!-- Positions: Client x=180, Proxy x=600, Upstream x=1000 -->
+  <g>
+    <rect class="box" x="110" y="60" width="140" height="40" />
+    <text class="label participant" x="180" y="86" text-anchor="middle">Client</text>
+
+    <rect class="box" x="530" y="60" width="140" height="40" />
+    <text class="label participant" x="600" y="86" text-anchor="middle">Proxy</text>
+    <text class="label muted" x="600" y="104" text-anchor="middle">(FastAPI GenAI Proxy)</text>
+
+    <rect class="box" x="930" y="60" width="140" height="40" />
+    <text class="label participant" x="1000" y="86" text-anchor="middle">Upstream</text>
+    <text class="label muted" x="1000" y="104" text-anchor="middle">(GENAI_BASE_URL)</text>
+  </g>
+
+  <!-- Lifelines -->
+  <line class="lifeline" x1="180" y1="120" x2="180" y2="560" />
+  <line class="lifeline" x1="600" y1="120" x2="600" y2="560" />
+  <line class="lifeline" x1="1000" y1="120" x2="1000" y2="560" />
+
+  <!-- Activations -->
+  <rect class="activation" x="592" y="140" width="16" height="380" />
+  <rect class="activation" x="992" y="300" width="16" height="70" />
+  <rect class="activation" x="172" y="140" width="16" height="30" />
+
+  <!-- Messages -->
+  <!-- 1. Client -> Proxy: HTTP request -->
+  <path class="arrow" d="M 180 160 L 600 160" />
+  <text class="label note" x="390" y="152" text-anchor="middle">HTTP request</text>
+
+  <!-- 2. Proxy -> Proxy: Log request, redact sensitive headers -->
+  <path class="arrow" d="M 600 200 L 640 200 L 640 230 L 600 230" />
+  <text class="label note" x="660" y="212">Log request, redact sensitive headers</text>
+
+  <!-- 3. Proxy -> Proxy: Normalize payload (if model starts with gpt-5) -->
+  <path class="arrow" d="M 600 260 L 640 260 L 640 290 L 600 290" />
+  <text class="label note" x="660" y="272">Normalize payload (if model starts with gpt-5)</text>
+
+  <!-- 4. Proxy -> Upstream: Forward request via httpx -->
+  <path class="arrow" d="M 600 320 L 1000 320" />
+  <text class="label note" x="800" y="312" text-anchor="middle">Forward request via httpx</text>
+
+  <!-- 5. Upstream -> Proxy: JSON or SSE stream -->
+  <path class="arrow" d="M 1000 360 L 600 360" />
+  <text class="label note" x="800" y="352" text-anchor="middle">JSON or SSE stream</text>
+
+  <!-- 6. Proxy -> Proxy: Log response (and stream chunks preview if enabled) -->
+  <path class="arrow" d="M 600 400 L 640 400 L 640 430 L 600 430" />
+  <text class="label note" x="660" y="412">Log response (and stream chunks preview if enabled)</text>
+
+  <!-- 7. Proxy -> Client: Return response (+ X-Request-ID, X-Upstream-Status when applicable) -->
+  <path class="arrow" d="M 600 480 L 180 480" />
+  <text class="label note" x="390" y="472" text-anchor="middle">Return response (+ X-Request-ID, X-Upstream-Status when applicable)</text>
+
+  <!-- Footer -->
+  <text class="label muted" x="600" y="590" text-anchor="middle">Solid arrows indicate synchronous calls; SSE implies chunked streaming back to Client.</text>
+</svg>
