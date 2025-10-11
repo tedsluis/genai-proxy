@@ -3,7 +3,7 @@ import json
 import time
 import uuid
 import logging
-from typing import Dict, Optional, Iterable, AsyncIterator
+from typing import Dict, Optional, AsyncIterator
 
 import httpx
 from fastapi import FastAPI, Request
