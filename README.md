@@ -86,7 +86,7 @@ Clients that can benefit from an OpenAI-compatible API include:
 
 ## Build container image
 
-note: **Podman** and **Docker** are largely interchangeable for most use cases: both follow OCI standards and share image formats, registries, volume semantics, and networking, so typical workflows are compatible. Unlike Docker, Podman is daemonless—it runs containers directly as regular processes (well-suited to rootless operation) without a central background service.
+note: **Podman** and **Docker** are largely interchangeable for most use cases: both follow OCI standards and share image formats, registries, volume semantics, and networking, so typical workflows are compatible. Unlike Docker, Podman is daemonless—it runs containers directly as regular processes (well-suited to rootless operation) without a central background service. So whenever you see **podman** in this instruction you can also use **docker**.
 
 ```bash
 $ podman build -t genai-proxy:latest -f Containerfile .
@@ -132,7 +132,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
 
 ## Run as a systemd Service
 
-Create a file `/etc/systemd/system/genai-proxy.service` with the following content:
+On a Linux system you can run genai-proxy as a systemd Daemon. Create a file `/etc/systemd/system/genai-proxy.service` with the following content:
 
 ```ini
 [Unit]
@@ -166,19 +166,22 @@ WantedBy=multi-user.target
 
 **Usage:**
 1. Adjust the `Environment` variables.
-2. Reload systemd:  
+2. Reload systemd:
   `sudo systemctl daemon-reload`
-3. Start the service:  
+3. Build container image
+  `sudo podman build -t genai-proxy:latest -f Containerfile .`
+4. Start the service:
   `sudo systemctl start genai-proxy`
-4. (Optional) Enable on boot:  
+5. (Optional) Enable on boot:
   `sudo systemctl enable genai-proxy`
 
-## Accessibilty 
+## Accessibilty
 
 The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
 
 - Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
 - Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
+- If you decide to run **main.py** without container, make sure you run it like: `uvicorn main:app --host 127.0.0.1 --port 8111`
 
 
 ## List models
@@ -354,7 +357,7 @@ $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: app
       {"role": "user", "content": "write a simple script in python to test the chat completion openai-compatible endpoint http://127.0.0.1:8111/v1/chat/completions (model gpt-5, no api_key needed)."}
     ],
     "max_completion_tokens": 4000
-  }' | jq -r '.choices[0].message.content' 
+  }' | jq -r '.choices[0].message.content'
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100  4482  100  4129  100   353    322     27  0:00:13  0:00:12  0:00:01  1154
@@ -441,7 +444,7 @@ if __name__ == "__main__":
 
 ## Use genai models in VSCode Copilot
 
-note: The OpenAI-compatible provider for copilot is available in VSCode(-insiders) 1.105.0 and above. 
+note: The OpenAI-compatible provider for copilot is available in VSCode(-insiders) 1.105.0 and above.
 
 Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Chat**
 
