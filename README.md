@@ -175,7 +175,7 @@ WantedBy=multi-user.target
 5. (Optional) Enable on boot:
   `sudo systemctl enable genai-proxy`
 
-## Accessibilty
+## Restrict access to local only
 
 The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
 
