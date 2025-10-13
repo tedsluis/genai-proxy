@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.build/
+dist/
+.venv/
+venv/
+ENV/
+*.log
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker/Podman
+*.dockerenv
+*.dockerignore
+Dockerfile*
+Containerfile*
+!.dockerignore
+
+# Coverage and test
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Environment
+.env
+.env.*
+
+# Node (if any)
+node_modules/

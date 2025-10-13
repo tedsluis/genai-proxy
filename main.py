@@ -90,7 +90,8 @@ def _build_forward_headers(incoming: Dict[str, str]) -> Dict[str, str]:
     headers = {
         "Content-Type": incoming.get("content-type", "application/json"),
     }
-    if SUBSCRIPTION_KEY:
+    # Inject subscription header only when both name and key are provided
+    if SUBSCRIPTION_NAME and SUBSCRIPTION_KEY:
         headers[SUBSCRIPTION_NAME] = SUBSCRIPTION_KEY
 
     skip = {"content-length", "host", "connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade"}
@@ -179,8 +180,6 @@ async def _forward_request(
 
     for attempt in range(MAX_RETRIES + 1):
         try:
-            from typing import AsyncIterator  # you already have this at the top of the file
-
             if wants_stream:
                 # Open the stream, but NOT with 'async with'
                 req = client.build_request(method, url, headers=headers, content=body)
@@ -346,21 +345,41 @@ async def health_v1(request: Request):
 
 @app.get("/v1/models")
 async def list_models(request: Request):
-    # Local, OpenAI-compatible response (without upstream call)
+    # Local, OpenAI-compatible response sourced from models.yaml (without upstream call)
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     now = int(time.time())
 
-    models = [
-        {"id": "gpt-4.1",          "object": "model", "created": now, "owned_by": "genai"},
-        {"id": "gpt-4.1-mini",     "object": "model", "created": now, "owned_by": "genai"},
-        {"id": "gpt-4.1-nano",     "object": "model", "created": now, "owned_by": "genai"},
-        {"id": "llama33_70b",      "object": "model", "created": now, "owned_by": "genai"},
-        {"id": "llama32_90b_vision","object": "model","created": now, "owned_by": "genai"},
-        {"id": "gpt-5",            "object": "model", "created": now, "owned_by": "genai"},
-        {"id": "gpt-5-mini",       "object": "model", "created": now, "owned_by": "genai"},
-    ]
-
-    resp = {"object": "list", "data": models}
+    import yaml
+    models_path = os.path.join(os.getcwd(), "models.yaml")
+    try:
+        with open(models_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        raw_models = data.get("models", data if isinstance(data, list) else [])
+        models: list[dict] = []
+        for m in raw_models:
+            if not isinstance(m, dict):
+                continue
+            mid = m.get("id")
+            if not mid:
+                continue
+            models.append({
+                "id": mid,
+                "object": m.get("object", "model"),
+                "created": m.get("created", now),
+                "owned_by": m.get("owned_by", "genai"),
+            })
+        resp = {"object": "list", "data": models}
+    except FileNotFoundError:
+        logger.warning(json.dumps({
+            "id": req_id,
+            "warning": "models.yaml not found",
+            "path": models_path
+        }))
+        resp = {"object": "list", "data": []}
+    except Exception as e:
+        err = {"error": {"type": "proxy_error", "message": f"models.yaml error: {e}", "request_id": req_id}}
+        logger.error(json.dumps(err))
+        return JSONResponse(status_code=500, content=err, headers={"X-Request-ID": req_id})
 
     # Logging in the same style as the proxy
     logger.info(json.dumps({

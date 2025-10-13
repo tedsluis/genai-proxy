@@ -33,6 +33,10 @@ RUN pip install --no-cache-dir /wheels/*
 # Copy app
 COPY main.py .
 
+# Note: models.yaml is expected at runtime in /app/models.yaml.
+# Mount it in containers, for example:
+#   podman run -v $PWD/models.yaml:/app/models.yaml:ro ... genai-proxy:latest
+
 # (optioneel) non-root user
 RUN useradd -u 10001 appuser
 USER appuser

@@ -24,7 +24,7 @@ Clients that can benefit from an OpenAI-compatible API include:
 | GET    | `/`                 | Returns proxy metadata (name, version, upstream).
 | GET    | `/health`           | Probes `GENAI_BASE_URL/`; returns text or 502 on error.
 | GET    | `/v1/health`        | Forwards to upstream `/v1/health`.
-| GET    | `/v1/models`        | Local static OpenAI-compatible model list (no upstream call).
+| GET    | `/v1/models`        | Local OpenAI-compatible model list sourced from `models.yaml` (no upstream call).
 | POST   | `/v1/chat/completions` | Forwards to upstream with optional SSE stream passthrough; normalizes payload for `gpt-5`.
 
 ### How it works (request flow)
@@ -102,6 +102,7 @@ $ export GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 $ podman run --replace \
              -d \
              -p 127.0.0.1:8111:8111 \
+             -v "$PWD/models.yaml:/app/models.yaml:ro" \
              -e GENAI_SUBSCRIPTION_NAME="${GENAI_SUBSCRIPTION_NAME}" \
              -e GENAI_API_KEY="${GENAI_API_KEY}" \
              -e GENAI_BASE_URL="${GENAI_BASE_URL}" \
@@ -182,6 +183,41 @@ The genai-proxy has no authentication and must therefor not be exposed to other 
 - Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
 - Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
 - If you decide to run **main.py** without container, make sure you run it like: `uvicorn main:app --host 127.0.0.1 --port 8111`
+
+## Models configuration (models.yaml)
+
+The `/v1/models` endpoint reads its model list from a local YAML file. Place `models.yaml` in the working directory (container path `/app/models.yaml`). Bind-mount it when running the container:
+
+```bash
+podman run -v "$PWD/models.yaml:/app/models.yaml:ro" ... genai-proxy:latest
+```
+
+Supported structures:
+
+```yaml
+# Either as a top-level array
+- id: gpt-4.1
+  object: model
+  owned_by: genai
+- id: gpt-5
+  object: model
+  owned_by: genai
+
+# Or under a models: key
+models:
+  - id: gpt-4.1
+    object: model
+    owned_by: genai
+  - id: gpt-5
+    object: model
+    owned_by: genai
+```
+
+Fields:
+- id (required)
+- object (defaults to `model`)
+- owned_by (defaults to `genai`)
+- created (defaults to current timestamp)
 
 
 ## List models
