@@ -37,6 +37,11 @@ COPY main.py .
 # Mount it in containers, for example:
 #   podman run -v $PWD/models.yaml:/app/models.yaml:ro ... genai-proxy:latest
 
+# Corporate proxy support:
+#   Set HTTPS_PROXY to route outbound traffic via a corporate proxy (no auth).
+#   Example:
+#     podman run -e HTTPS_PROXY=http://proxy.domain.org:8080 ... genai-proxy:latest
+
 # (optioneel) non-root user
 RUN useradd -u 10001 appuser
 USER appuser
