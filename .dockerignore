@@ -1,0 +1,29 @@
+# Exclude VCS
+.git/
+.gitignore
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local env & secrets
+.env
+.env.*
+
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node (if any)
+node_modules/

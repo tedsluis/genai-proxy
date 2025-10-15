@@ -1,0 +1,25 @@
+# List of models for genai-proxy
+# You can list models either as a top-level array or under a `models:` key
+
+models:
+  - id: gpt-4.1
+    object: model
+    owned_by: genai
+  - id: gpt-4.1-mini
+    object: model
+    owned_by: genai
+  - id: gpt-4.1-nano
+    object: model
+    owned_by: genai
+  - id: llama33_70b
+    object: model
+    owned_by: genai
+  - id: llama32_90b_vision
+    object: model
+    owned_by: genai
+  - id: gpt-5
+    object: model
+    owned_by: genai
+  - id: gpt-5-mini
+    object: model
+    owned_by: genai
