@@ -7,11 +7,15 @@ Restart=always
 Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
 Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
+# Optional corporate proxy (no authentication)
+# Example: uncomment and set your proxy URL
+# Environment=HTTPS_PROXY=http://proxy.domain.org:8080
 ExecStart=/usr/bin/podman run --replace \
     -p 127.0.0.1:8111:8111 \
     -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
     -e GENAI_API_KEY=${GENAI_API_KEY} \
     -e GENAI_BASE_URL=${GENAI_BASE_URL} \
+    -e HTTPS_PROXY=${HTTPS_PROXY} \
     -e REQUEST_TIMEOUT=60 \
     -e MAX_RETRIES=2 \
     -e RETRY_BACKOFF_SEC=0.5 \

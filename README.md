@@ -45,6 +45,34 @@ Clients that can benefit from an OpenAI-compatible API include:
 | `LOG_BODIES` | `true` | If true, logs request/response bodies (JSON or raw preview).
 | `ALLOWED_ORIGINS` | `` | Comma-separated origins to allow via CORS (if set, CORS is enabled).
 | `LOG_STREAM_MAX_BYTES` | `0` | If >0, logs up to N bytes of streamed chunks.
+| `HTTPS_PROXY` | `` | Optional corporate HTTP/HTTPS proxy URL (e.g., `http://proxy.domain.org:8080`). Authentication is not supported.
+
+#### Corporate proxy (HTTPS_PROXY)
+
+If your environment requires outbound traffic to go through a corporate proxy, set `HTTPS_PROXY` to a valid HTTP or HTTPS URL (e.g., `http://proxy.domain.org:8080`).
+
+- No proxy authentication is supported; do not include credentials in the URL.
+- When set, the proxy applies to all upstream calls and streaming.
+- Invalid or unreachable proxies will result in `proxy_error` responses; see logs for details.
+
+Example with Podman/Docker:
+
+```bash
+podman run -e HTTPS_PROXY="http://proxy.domain.org:8080" \
+           -e GENAI_SUBSCRIPTION_NAME="$GENAI_SUBSCRIPTION_NAME" \
+           -e GENAI_API_KEY="$GENAI_API_KEY" \
+           -e GENAI_BASE_URL="$GENAI_BASE_URL" \
+           -p 127.0.0.1:8111:8111 \
+           --name genai-proxy \
+           genai-proxy:latest
+```
+
+Startup logs include the proxy status and address:
+
+```
+INFO HTTPS_PROXY=http://proxy.domain.org:8080
+INFO PROXY_ENABLED=True
+```
 
 ### CORS
 
@@ -103,6 +131,7 @@ $ podman run --replace \
              -d \
              -p 127.0.0.1:8111:8111 \
              -v "$PWD/models.yaml:/app/models.yaml:ro" \
+             -e HTTPS_PROXY="http://proxy.domain.org:8080" \
              -e GENAI_SUBSCRIPTION_NAME="${GENAI_SUBSCRIPTION_NAME}" \
              -e GENAI_API_KEY="${GENAI_API_KEY}" \
              -e GENAI_BASE_URL="${GENAI_BASE_URL}" \
@@ -147,6 +176,7 @@ Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 ExecStart=/usr/bin/podman run --replace \
    -p 127.0.0.1:8111:8111 \
+  -e HTTPS_PROXY=${HTTPS_PROXY} \
    -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
    -e GENAI_API_KEY=${GENAI_API_KEY} \
    -e GENAI_BASE_URL=${GENAI_BASE_URL} \

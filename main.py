@@ -4,6 +4,7 @@ import time
 import uuid
 import logging
 from typing import Dict, Optional, AsyncIterator
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from fastapi import FastAPI, Request
@@ -23,6 +24,17 @@ LOG_BODIES = os.getenv("LOG_BODIES", "true").lower() in ("1", "true", "yes")
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 # For streams, we do not log the body by default; optionally you can log the first N bytes:
 LOG_STREAM_MAX_BYTES = int(os.getenv("LOG_STREAM_MAX_BYTES", "0"))
+HTTPS_PROXY = os.getenv("HTTPS_PROXY")
+_PROXY_SCHEME = None
+_PROXY_NETLOC = None
+if HTTPS_PROXY:
+    try:
+        _p = urlsplit(HTTPS_PROXY)
+        _PROXY_SCHEME = _p.scheme
+        _PROXY_NETLOC = _p.netloc
+    except Exception:
+        _PROXY_SCHEME = "INVALID"
+        _PROXY_NETLOC = ""
 
 SENSITIVE_HEADER_KEYS = {"authorization", "proxy-authorization", SUBSCRIPTION_NAME.lower() if SUBSCRIPTION_NAME else ""}
 
@@ -36,6 +48,21 @@ _handler.setFormatter(_formatter)
 logger.addHandler(_handler)
 logger.setLevel(logging.INFO)
 
+def _redact_proxy_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    try:
+        parts = urlsplit(url)
+        # Remove credentials if present
+        if parts.username or parts.password:
+            host = parts.hostname or ""
+            if parts.port:
+                host = f"{host}:{parts.port}"
+            return urlunsplit((parts.scheme, host, parts.path, parts.query, parts.fragment))
+        return url
+    except Exception:
+        return "INVALID"
+
 logger.info(f"SUBSCRIPTION_NAME={SUBSCRIPTION_NAME}")
 logger.info(f"SUBSCRIPTION_KEY={SUBSCRIPTION_KEY[:4] + '*******************' if SUBSCRIPTION_KEY else None}")
 logger.info(f"GENAI_BASE_URL={GENAI_BASE_URL}")
@@ -45,6 +72,13 @@ logger.info(f"RETRY_BACKOFF_SEC={RETRY_BACKOFF_SEC}")
 logger.info(f"LOG_BODIES={LOG_BODIES}")
 logger.info(f"ALLOWED_ORIGINS={ALLOWED_ORIGINS}")
 logger.info(f"LOG_STREAM_MAX_BYTES={LOG_STREAM_MAX_BYTES}")
+logger.info(f"HTTPS_PROXY={_redact_proxy_url(HTTPS_PROXY)}")
+logger.info(f"PROXY_ENABLED={bool(HTTPS_PROXY)}")
+if HTTPS_PROXY:
+    if _PROXY_SCHEME not in ("http", "https"):
+        logger.warning(f"HTTPS_PROXY_SCHEME_UNSUPPORTED={_PROXY_SCHEME}")
+    if not _PROXY_NETLOC:
+        logger.warning("HTTPS_PROXY_NETLOC_MISSING=true")
 
 def _redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
     return {k: ("***REDACTED***" if k.lower() in SENSITIVE_HEADER_KEYS else v) for k, v in headers.items()}
@@ -73,7 +107,10 @@ if ALLOWED_ORIGINS:
 async def startup():
     timeout = httpx.Timeout(REQUEST_TIMEOUT)
     limits = httpx.Limits(max_keepalive_connections=20, max_connections=100)
-    app.state.client = httpx.AsyncClient(timeout=timeout, limits=limits)
+    proxies = HTTPS_PROXY if HTTPS_PROXY else None
+    # When an explicit proxy is configured, do not inherit other env vars
+    trust_env = False if proxies else True
+    app.state.client = httpx.AsyncClient(timeout=timeout, limits=limits, proxies=proxies, trust_env=trust_env)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -94,7 +131,7 @@ def _build_forward_headers(incoming: Dict[str, str]) -> Dict[str, str]:
     if SUBSCRIPTION_NAME and SUBSCRIPTION_KEY:
         headers[SUBSCRIPTION_NAME] = SUBSCRIPTION_KEY
 
-    skip = {"content-length", "host", "connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade"}
+    skip = {"content-length", "host", "connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade", "proxy-authorization"}
     for k, v in incoming.items():
         kl = k.lower()
         if kl in skip:
@@ -287,7 +324,8 @@ async def _forward_request(
                     "id": req_id,
                     "retry": attempt + 1,
                     "backoff_sec": backoff,
-                    "error": f"{type(exc).__name__}: {str(exc)}"
+                    "error": f"{type(exc).__name__}: {str(exc)}",
+                    **({"proxy": _redact_proxy_url(HTTPS_PROXY)} if HTTPS_PROXY else {})
                 }))
                 await _sleep(backoff)
                 continue
@@ -303,6 +341,7 @@ async def _forward_request(
             "message": f"{type(last_exc).__name__}: {str(last_exc)}" if last_exc else "Unknown upstream error",
             "request_id": req_id,
             "upstream": url,
+            **({"proxy": _redact_proxy_url(HTTPS_PROXY)} if HTTPS_PROXY else {})
         }
     }
     logger.error(json.dumps(err_payload))
