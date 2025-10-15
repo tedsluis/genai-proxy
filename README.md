@@ -6,11 +6,15 @@ OpenAI compatible proxy
 
 This project provides an OpenAI-compatible HTTP proxy that injects a corporate subscription header with an API key and forwards requests to a configured upstream OpenAI compatible endpoint. It provides extensive logging and error handling and it normalizes certain request fields for the “gpt-5” family, supports Server-Sent Events (SSE) streaming passthrough, and offers detailed request/response logging with retry logic.
 
-Clients that can benefit from an OpenAI-compatible API include:
+Clients that can be used with this proxy:
 - VSCode Copilot
 - Codex
 - Open WebUI
 - Open Code
+
+The proxy can be used for OpenAI-compatible API's like:
+- Azure OpenAI
+- Ollama
 
 ### Architecture
 
@@ -159,6 +163,7 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
 ```
+note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
 
 ## Run as a systemd Service
 
@@ -176,7 +181,7 @@ Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 ExecStart=/usr/bin/podman run --replace \
    -p 127.0.0.1:8111:8111 \
-  -e HTTPS_PROXY=${HTTPS_PROXY} \
+   -e HTTPS_PROXY=${HTTPS_PROXY} \
    -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
    -e GENAI_API_KEY=${GENAI_API_KEY} \
    -e GENAI_BASE_URL=${GENAI_BASE_URL} \
@@ -194,6 +199,7 @@ ExecStopPost=/usr/bin/podman rm genai-proxy
 [Install]
 WantedBy=multi-user.target
 ```
+note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
 
 **Usage:**
 1. Adjust the `Environment` variables.
@@ -206,7 +212,7 @@ WantedBy=multi-user.target
 5. (Optional) Enable on boot:
   `sudo systemctl enable genai-proxy`
 
-## Restrict access to local only
+## Restrict access to localhost only
 
 The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
 
@@ -411,7 +417,7 @@ $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: app
 }
 ```
 
-## test chat completion using gpt-5
+## Test chat completion using gpt-5
 
 An example to create some python code.
 

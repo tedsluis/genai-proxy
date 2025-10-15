@@ -3,7 +3,7 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Zorg voor snellere/kleinere wheels
+# wheels
 RUN pip install --upgrade pip wheel
 COPY requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
@@ -13,7 +13,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    # Defaults: pas eventueel aan via -e bij podman run
+    # Defaults: adjust these using podman run -e ENV_VAR=VALUE
     GENAI_SUBSCRIPTION_NAME=some-subscription-name \
     GENAI_API_KEY=some-api-key \
     GENAI_BASE_URL="https://genai.example.com" \
