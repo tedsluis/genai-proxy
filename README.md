@@ -67,6 +67,7 @@ podman run -e HTTPS_PROXY="http://proxy.domain.org:8080" \
            -e GENAI_API_KEY="$GENAI_API_KEY" \
            -e GENAI_BASE_URL="$GENAI_BASE_URL" \
            -p 127.0.0.1:8111:8111 \
+           -v "$PWD/models.yaml:/app/models.yaml:z" \
            --name genai-proxy \
            genai-proxy:latest
 ```
@@ -124,108 +125,12 @@ note: **Podman** and **Docker** are largely interchangeable for most use cases: 
 $ podman build -t genai-proxy:latest -f Containerfile .
 ```
 
-## Run proxy
-
-```bash
-$ export GENAI_SUBSCRIPTION_NAME=some-subscription-name
-$ export GENAI_API_KEY=some-api-key
-$ export GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
-
-$ podman run --replace \
-             -d \
-             -p 127.0.0.1:8111:8111 \
-             -v "$PWD/models.yaml:/app/models.yaml:ro" \
-             -e HTTPS_PROXY="http://proxy.domain.org:8080" \
-             -e GENAI_SUBSCRIPTION_NAME="${GENAI_SUBSCRIPTION_NAME}" \
-             -e GENAI_API_KEY="${GENAI_API_KEY}" \
-             -e GENAI_BASE_URL="${GENAI_BASE_URL}" \
-             -e REQUEST_TIMEOUT="60" \
-             -e MAX_RETRIES="2" \
-             -e RETRY_BACKOFF_SEC="0.5" \
-             -e LOG_BODIES="true" \
-             -e LOG_STREAM_MAX_BYTES="0" \
-             -e ALLOWED_ORIGINS="http://127.0.0.1:8111" \
-             --name genai-proxy \
-             genai-proxy:latest
-
-$ podman logs -f genai-proxy
-2025-10-03 07:20:12,683 INFO SUBSCRIPTION_NAME=*******************
-2025-10-03 07:20:12,683 INFO SUBSCRIPTION_KEY=711b*******************
-2025-10-03 07:20:12,683 INFO GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
-2025-10-03 07:20:12,683 INFO REQUEST_TIMEOUT=60.0
-2025-10-03 07:20:12,683 INFO MAX_RETRIES=2
-2025-10-03 07:20:12,683 INFO RETRY_BACKOFF_SEC=0.5
-2025-10-03 07:20:12,683 INFO LOG_BODIES=True
-2025-10-03 07:20:12,683 INFO ALLOWED_ORIGINS=['http://127.0.0.1:8111']
-2025-10-03 07:20:12,683 INFO LOG_STREAM_MAX_BYTES=0
-INFO:     Started server process [1]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
-```
-note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
-
-## Run as a systemd Service
-
-On a Linux system you can run genai-proxy as a systemd Daemon. Create a file `/etc/systemd/system/genai-proxy.service` with the following content:
-
-```ini
-[Unit]
-Description=GenAI Proxy Container
-After=network.target
-
-[Service]
-Restart=always
-Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
-Environment=GENAI_API_KEY=some-api-key
-Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
-ExecStart=/usr/bin/podman run --replace \
-   -p 127.0.0.1:8111:8111 \
-   -e HTTPS_PROXY=${HTTPS_PROXY} \
-   -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
-   -e GENAI_API_KEY=${GENAI_API_KEY} \
-   -e GENAI_BASE_URL=${GENAI_BASE_URL} \
-   -e REQUEST_TIMEOUT=60 \
-   -e MAX_RETRIES=2 \
-   -e RETRY_BACKOFF_SEC=0.5 \
-   -e LOG_BODIES=true \
-   -e LOG_STREAM_MAX_BYTES=0 \
-   -e ALLOWED_ORIGINS=http://127.0.0.1:8111 \
-   --name genai-proxy \
-   genai-proxy:latest
-ExecStop=/usr/bin/podman stop -t 10 genai-proxy
-ExecStopPost=/usr/bin/podman rm genai-proxy
-
-[Install]
-WantedBy=multi-user.target
-```
-note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
-
-**Usage:**
-1. Adjust the `Environment` variables.
-2. Reload systemd:
-  `sudo systemctl daemon-reload`
-3. Build container image
-  `sudo podman build -t genai-proxy:latest -f Containerfile .`
-4. Start the service:
-  `sudo systemctl start genai-proxy`
-5. (Optional) Enable on boot:
-  `sudo systemctl enable genai-proxy`
-
-## Restrict access to localhost only
-
-The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
-
-- Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
-- Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
-- If you decide to run **main.py** without container, make sure you run it like: `uvicorn main:app --host 127.0.0.1 --port 8111`
-
 ## Models configuration (models.yaml)
 
 The `/v1/models` endpoint reads its model list from a local YAML file. Place `models.yaml` in the working directory (container path `/app/models.yaml`). Bind-mount it when running the container:
 
 ```bash
-podman run -v "$PWD/models.yaml:/app/models.yaml:ro" ... genai-proxy:latest
+podman run -v "$PWD/models.yaml:/app/models.yaml:z" ... genai-proxy:latest
 ```
 
 Supported structures:
@@ -255,6 +160,106 @@ Fields:
 - owned_by (defaults to `genai`)
 - created (defaults to current timestamp)
 
+## Run proxy
+
+```bash
+$ export GENAI_SUBSCRIPTION_NAME=some-subscription-name
+$ export GENAI_API_KEY=some-api-key
+$ export GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
+
+$ podman run --replace \
+             -d \
+             -p 127.0.0.1:8111:8111 \
+             -v "$PWD/models.yaml:/app/models.yaml:z" \
+             -e HTTPS_PROXY="http://proxy.domain.org:8080" \
+             -e GENAI_SUBSCRIPTION_NAME="${GENAI_SUBSCRIPTION_NAME}" \
+             -e GENAI_API_KEY="${GENAI_API_KEY}" \
+             -e GENAI_BASE_URL="${GENAI_BASE_URL}" \
+             -e REQUEST_TIMEOUT="60" \
+             -e MAX_RETRIES="2" \
+             -e RETRY_BACKOFF_SEC="0.5" \
+             -e LOG_BODIES="true" \
+             -e LOG_STREAM_MAX_BYTES="0" \
+             -e ALLOWED_ORIGINS="http://127.0.0.1:8111" \
+             --name genai-proxy \
+             genai-proxy:latest
+
+$ podman logs -f genai-proxy
+2025-10-03 07:20:12,683 INFO SUBSCRIPTION_NAME=*******************
+2025-10-03 07:20:12,683 INFO SUBSCRIPTION_KEY=711b*******************
+2025-10-03 07:20:12,683 INFO GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
+2025-10-03 07:20:12,683 INFO REQUEST_TIMEOUT=60.0
+2025-10-03 07:20:12,683 INFO MAX_RETRIES=2
+2025-10-03 07:20:12,683 INFO RETRY_BACKOFF_SEC=0.5
+2025-10-03 07:20:12,683 INFO LOG_BODIES=True
+2025-10-03 07:20:12,683 INFO ALLOWED_ORIGINS=['http://127.0.0.1:8111']
+2025-10-03 07:20:12,683 INFO LOG_STREAM_MAX_BYTES=0
+2025-10-03 07:20:12,683 INFO HTTPS_PROXY=http://proxy.domain.org:8080
+2025-10-03 07:20:12,683 INFO PROXY_ENABLED=True
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
+```
+note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
+
+## Run as a systemd Service
+
+On a Linux system you can run genai-proxy as a systemd Daemon. Create a file `/etc/systemd/system/genai-proxy.service` with the following content:
+
+```ini
+[Unit]
+Description=GenAI Proxy Container
+After=network.target
+
+[Service]
+Restart=always
+Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
+Environment=GENAI_API_KEY=some-api-key
+Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
+ExecStart=/usr/bin/podman run --replace \
+   -p 127.0.0.1:8111:8111 \
+   -v "/etc/systemd/system/models.yaml:/app/models.yaml:z" \
+   -e HTTPS_PROXY=${HTTPS_PROXY} \
+   -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
+   -e GENAI_API_KEY=${GENAI_API_KEY} \
+   -e GENAI_BASE_URL=${GENAI_BASE_URL} \
+   -e REQUEST_TIMEOUT=60 \
+   -e MAX_RETRIES=2 \
+   -e RETRY_BACKOFF_SEC=0.5 \
+   -e LOG_BODIES=true \
+   -e LOG_STREAM_MAX_BYTES=0 \
+   -e ALLOWED_ORIGINS=http://127.0.0.1:8111 \
+   --name genai-proxy \
+   genai-proxy:latest
+ExecStop=/usr/bin/podman stop -t 10 genai-proxy
+ExecStopPost=/usr/bin/podman rm genai-proxy
+
+[Install]
+WantedBy=multi-user.target
+```
+note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
+
+**Usage:**
+1. Adjust the `Environment` variables.
+2. Reload systemd:
+  `sudo systemctl daemon-reload`
+3. Create models.yaml
+  `sudo vi /etc/systemd/system/models.yaml`
+4. Build container image
+  `sudo podman build -t genai-proxy:latest -f Containerfile .`
+5. Start the service:
+  `sudo systemctl start genai-proxy`
+6. (Optional) Enable on boot:
+  `sudo systemctl enable genai-proxy`
+
+## Restrict access to localhost only
+
+The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
+
+- Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
+- Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
+- If you decide to run **main.py** without container, make sure you run it like: `uvicorn main:app --host 127.0.0.1 --port 8111`
 
 ## List models
 

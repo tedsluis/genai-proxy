@@ -35,7 +35,7 @@ COPY main.py .
 
 # Note: models.yaml is expected at runtime in /app/models.yaml.
 # Mount it in containers, for example:
-#   podman run -v $PWD/models.yaml:/app/models.yaml:ro ... genai-proxy:latest
+#   podman run -v $PWD/models.yaml:/app/models.yaml:z ... genai-proxy:latest
 
 # Corporate proxy support:
 #   Set HTTPS_PROXY to route outbound traffic via a corporate proxy (no auth).
