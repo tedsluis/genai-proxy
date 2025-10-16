@@ -7,14 +7,14 @@ OpenAI compatible proxy
 This project provides an OpenAI-compatible HTTP proxy that injects a corporate subscription header with an API key and forwards requests to a configured upstream OpenAI compatible endpoint. It provides extensive logging and error handling and it normalizes certain request fields for the “gpt-5” family, supports Server-Sent Events (SSE) streaming passthrough, and offers detailed request/response logging with retry logic.
 
 Clients that can be used with this proxy:
-- VSCode Copilot
+- [VSCode Copilot](https://code.visualstudio.com/insiders/)
 - Codex
 - Open WebUI
 - Open Code
 
 The proxy can be used for OpenAI-compatible API's like:
-- Azure OpenAI
-- Ollama
+- [Azure OpenAI](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/models-sold-directly-by-azure)
+- [Ollama](https://github.com/ollama/ollama)
 
 ### Architecture
 
@@ -116,53 +116,27 @@ INFO PROXY_ENABLED=True
 
 ![genai-proxy sequence](images/genai-proxy-sequence.svg)
 
+## Build & Run instructions
 
-## Build container image
+Clone this repo in your home directory en follow one of the instructions below:
 
-note: **Podman** and **Docker** are largely interchangeable for most use cases: both follow OCI standards and share image formats, registries, volume semantics, and networking, so typical workflows are compatible. Unlike Docker, Podman is daemonless—it runs containers directly as regular processes (well-suited to rootless operation) without a central background service. So whenever you see **podman** in this instruction you can also use **docker**.
+* Build & Run (rootless)
+* Build & Run as a systemd Service
+
+```bash
+$ git clone https://github.com/tedsluis/genai-proxy.git
+$ cd genai-proxy
+```
+
+### Podman or Docker
+
+**Podman** and **Docker** are largely interchangeable for most use cases: both follow OCI standards and share image formats, registries, volume semantics, and networking, so typical workflows are compatible. Unlike Docker, Podman is daemonless—it runs containers directly as regular processes (well-suited to rootless operation) without a central background service. So whenever you see **podman** in this instruction you can also use **docker**.
+
+### Build & Run (rootless)
 
 ```bash
 $ podman build -t genai-proxy:latest -f Containerfile .
-```
 
-## Models configuration (models.yaml)
-
-The `/v1/models` endpoint reads its model list from a local YAML file. Place `models.yaml` in the working directory (container path `/app/models.yaml`). Bind-mount it when running the container:
-
-```bash
-podman run -v "$PWD/models.yaml:/app/models.yaml:z" ... genai-proxy:latest
-```
-
-Supported structures:
-
-```yaml
-# Either as a top-level array
-- id: gpt-4.1
-  object: model
-  owned_by: genai
-- id: gpt-5
-  object: model
-  owned_by: genai
-
-# Or under a models: key
-models:
-  - id: gpt-4.1
-    object: model
-    owned_by: genai
-  - id: gpt-5
-    object: model
-    owned_by: genai
-```
-
-Fields:
-- id (required)
-- object (defaults to `model`)
-- owned_by (defaults to `genai`)
-- created (defaults to current timestamp)
-
-## Run proxy
-
-```bash
 $ export GENAI_SUBSCRIPTION_NAME=some-subscription-name
 $ export GENAI_API_KEY=some-api-key
 $ export GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
@@ -241,7 +215,8 @@ WantedBy=multi-user.target
 note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
 
 **Usage:**
-1. Adjust the `Environment` variables.
+1. Create genai-proxy.service and adjust the `Environment` variables.
+  `sudo vi /etc/systemd/system/genai-proxy.service`
 2. Reload systemd:
   `sudo systemctl daemon-reload`
 3. Create models.yaml
@@ -260,6 +235,41 @@ The genai-proxy has no authentication and must therefor not be exposed to other 
 - Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
 - Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
 - If you decide to run **main.py** without container, make sure you run it like: `uvicorn main:app --host 127.0.0.1 --port 8111`
+
+## Models configuration (models.yaml)
+
+The `/v1/models` endpoint reads its model list from a local YAML file. Place `models.yaml` in the working directory (container path `/app/models.yaml`). Bind-mount it when running the container:
+
+```bash
+podman run -v "$PWD/models.yaml:/app/models.yaml:z" ... genai-proxy:latest
+```
+
+Supported structures:
+
+```yaml
+# Either as a top-level array
+- id: gpt-4.1
+  object: model
+  owned_by: genai
+- id: gpt-5
+  object: model
+  owned_by: genai
+
+# Or under a models: key
+models:
+  - id: gpt-4.1
+    object: model
+    owned_by: genai
+  - id: gpt-5
+    object: model
+    owned_by: genai
+```
+
+Fields:
+- id (required)
+- object (defaults to `model`)
+- owned_by (defaults to `genai`)
+- created (defaults to current timestamp)
 
 ## List models
 
