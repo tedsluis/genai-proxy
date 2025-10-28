@@ -12,7 +12,7 @@ Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 # Environment=HTTPS_PROXY=http://proxy.domain.org:8080
 ExecStart=/usr/bin/podman run --replace \
     -p 127.0.0.1:8111:8111 \
-    -v "/etc/systemd/system//models.yaml:/app/models.yaml:z" \
+    -v "/opt/genai-proxy/models.yaml:/app/models.yaml:z" \
     -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
     -e GENAI_API_KEY=${GENAI_API_KEY} \
     -e GENAI_BASE_URL=${GENAI_BASE_URL} \

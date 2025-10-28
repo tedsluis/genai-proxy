@@ -159,21 +159,22 @@ $ podman run --replace \
              genai-proxy:latest
 
 $ podman logs -f genai-proxy
-2025-10-03 07:20:12,683 INFO SUBSCRIPTION_NAME=*******************
-2025-10-03 07:20:12,683 INFO SUBSCRIPTION_KEY=711b*******************
-2025-10-03 07:20:12,683 INFO GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
-2025-10-03 07:20:12,683 INFO REQUEST_TIMEOUT=60.0
-2025-10-03 07:20:12,683 INFO MAX_RETRIES=2
-2025-10-03 07:20:12,683 INFO RETRY_BACKOFF_SEC=0.5
-2025-10-03 07:20:12,683 INFO LOG_BODIES=True
-2025-10-03 07:20:12,683 INFO ALLOWED_ORIGINS=['http://127.0.0.1:8111']
-2025-10-03 07:20:12,683 INFO LOG_STREAM_MAX_BYTES=0
-2025-10-03 07:20:12,683 INFO HTTPS_PROXY=http://proxy.domain.org:8080
-2025-10-03 07:20:12,683 INFO PROXY_ENABLED=True
+2025-10-22 07:55:01,649 INFO SUBSCRIPTION_NAME=O******************
+2025-10-22 07:55:01,649 INFO SUBSCRIPTION_KEY=711b*******************
+2025-10-22 07:55:01,649 INFO GENAI_BASE_URL=https://gateway.apiportal.ns.nl/genai
+2025-10-22 07:55:01,649 INFO REQUEST_TIMEOUT=60.0
+2025-10-22 07:55:01,649 INFO MAX_RETRIES=2
+2025-10-22 07:55:01,649 INFO RETRY_BACKOFF_SEC=0.5
+2025-10-22 07:55:01,649 INFO LOG_BODIES=True
+2025-10-22 07:55:01,649 INFO ALLOWED_ORIGINS=['http://127.0.0.1:8111']
+2025-10-22 07:55:01,649 INFO LOG_STREAM_MAX_BYTES=0
+2025-10-22 07:55:01,649 INFO HTTPS_PROXY=http://vip-dso-proxy.hopp.ns.nl:8080
+2025-10-22 07:55:01,649 INFO PROXY_ENABLED=True
 INFO:     Started server process [1]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
+
 ```
 note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
 
@@ -193,7 +194,7 @@ Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 ExecStart=/usr/bin/podman run --replace \
    -p 127.0.0.1:8111:8111 \
-   -v "/etc/systemd/system/models.yaml:/app/models.yaml:z" \
+  -v "/opt/genai-proxy/models.yaml:/app/models.yaml:z" \
    -e HTTPS_PROXY=${HTTPS_PROXY} \
    -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
    -e GENAI_API_KEY=${GENAI_API_KEY} \
@@ -220,13 +221,89 @@ note: the HTTPS_PROXY is optional, in case you need to use a corperated internet
 2. Reload systemd:
   `sudo systemctl daemon-reload`
 3. Create models.yaml
-  `sudo vi /etc/systemd/system/models.yaml`
+  `sudo mkdir -p /opt/genai-proxy && sudo vi /opt/genai-proxy/models.yaml`
 4. Build container image
   `sudo podman build -t genai-proxy:latest -f Containerfile .`
 5. Start the service:
   `sudo systemctl start genai-proxy`
 6. (Optional) Enable on boot:
   `sudo systemctl enable genai-proxy`
+
+## Install using the install.sh
+
+```bash
+$ ./install.sh 
+genai-proxy installer
+==> Preparing directories
+==> Installing systemd service
+Service already exists at /etc/systemd/system/genai-proxy.service; not copying again.
+==> Installing models.yaml
+==> Building container image (root storage)
+[1/2] STEP 1/5: FROM python:3.12-slim AS builder
+[1/2] STEP 2/5: WORKDIR /app
+--> Using cache e0f0242a0b5543f998749d8f9e0a12af66b4dfc2c0fd82fa77c1f6796571370c
+--> e0f0242a0b55
+[1/2] STEP 3/5: RUN pip install --upgrade pip wheel
+--> Using cache 62e46f78ce2507150e8d181545f8a7bbaeb528a11e7fe1d174fde353e2127d4e
+--> 62e46f78ce25
+[1/2] STEP 4/5: COPY requirements.txt .
+--> Using cache d5383899d564edc4e5b31d91117601c53d1ea7068f9fa5fb5c7cd7f398375bcb
+--> d5383899d564
+[1/2] STEP 5/5: RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+--> Using cache e353b465b07bbd8dac850b7c5176c43a9f0cabdda7d4dbef754a1c2a1f5bf0cc
+--> e353b465b07b
+[2/2] STEP 1/10: FROM python:3.12-slim
+[2/2] STEP 2/10: ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     GENAI_SUBSCRIPTION_NAME=some-subscription-name     GENAI_API_KEY=some-api-key     GENAI_BASE_URL="https://genai.example.com"     REQUEST_TIMEOUT="60"     MAX_RETRIES="2"     RETRY_BACKOFF_SEC="0.5"     LOG_BODIES="true"     LOG_STREAM_MAX_BYTES="0"     ALLOWED_ORIGINS=""
+--> Using cache ef54f8e492ba27b68ffde5e3cbe96de7dd1a53575cc066f03a14ccb4e4849ccb
+--> ef54f8e492ba
+[2/2] STEP 3/10: WORKDIR /app
+--> Using cache 0795c6debc35c63f32e860ed8782cdb556a3b901e3c0ce9387d1d0aeca0634c2
+--> 0795c6debc35
+[2/2] STEP 4/10: COPY --from=builder /wheels /wheels
+--> Using cache b01e99fd0aa600b00a8ad44a27ce53b0cf9881aebf47b26e11535a82490c3f05
+--> b01e99fd0aa6
+[2/2] STEP 5/10: RUN pip install --no-cache-dir /wheels/*
+--> Using cache a0ab7455645b538307e425b8203a7a964541e84c85ea3d24609204e80613563f
+--> a0ab7455645b
+[2/2] STEP 6/10: COPY main.py .
+--> Using cache 4707b1a5fe58a7ce4319b187698b0ae86fd674bb3473ddb6647c9d24eddf6a79
+--> 4707b1a5fe58
+[2/2] STEP 7/10: RUN useradd -u 10001 appuser
+--> Using cache 8ba748793f2e951f482e500ef7a156bdafdecfc7c40e433aecc5a090d9ca5f1f
+--> 8ba748793f2e
+[2/2] STEP 8/10: USER appuser
+--> Using cache 11a831046a90884092a2bffcf8b08712af6c9da33e15e208703e07a4d0ce70db
+--> 11a831046a90
+[2/2] STEP 9/10: EXPOSE 8111
+--> Using cache 29d8aaafadefebd7bd9109e4f10ef5660ae1ab009fbea6d68a4d085da6dabd8f
+--> 29d8aaafadef
+[2/2] STEP 10/10: CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8111", "--proxy-headers"]
+--> Using cache 3de3e07a5f0c88f97d70be4d8255343cb8efadccdf574f470b7bfd8c35dfc6f9
+[2/2] COMMIT genai-proxy:latest
+--> 3de3e07a5f0c
+Successfully tagged localhost/genai-proxy:latest
+3de3e07a5f0c88f97d70be4d8255343cb8efadccdf574f470b7bfd8c35dfc6f9
+==> Reloading systemd, enabling and starting genai-proxy
+==> Done
+● genai-proxy.service - GenAI Proxy Container
+     Loaded: loaded (/etc/systemd/system/genai-proxy.service; enabled; preset: disabled)
+    Drop-In: /usr/lib/systemd/system/service.d
+             └─10-timeout-abort.conf
+     Active: active (running) since Tue 2025-10-28 13:17:47 CET; 102ms ago
+ Invocation: 77e5e6e0c21244dd954c08e9dc78e21a
+   Main PID: 540585 (podman)
+      Tasks: 22 (limit: 76501)
+     Memory: 20.4M (peak: 21.6M)
+        CPU: 93ms
+     CGroup: /system.slice/genai-proxy.service
+             ├─540585 /usr/bin/podman run --replace -p 127.0.0.1:8111:8111 -v /opt/genai-proxy/models.yaml:/app/models.yaml:z -e GENAI_SUBSCRIPTION_NAME=**************** -e GENAI_API_KEY=******************** -e GENAI_BASE_URL=https://*********** -e HTTPS_PROXY=******** -e REQUEST_TIMEOUT=60 -e MAX_RETRIES=2 -e RETRY_BACKOFF_SEC=0.5 -e LOG_BODIES=true -e LOG_STREAM_MAX_BYTES=0 -e ALLOWED_ORIGINS=http://127.0.0.1:8111 --name genai-proxy genai-proxy:latest
+             ├─540619 /usr/libexec/podman/netavark --config /run/containers/networks --rootless=false --aardvark-binary=/usr/libexec/podman/aardvark-dns setup /run/netns/netns-d14d0c96-93c2-a7e2-dc8a-7c9f08f8bf9b
+             └─540627 nft -j -f -
+
+okt 28 13:17:47 fedora systemd[1]: Started genai-proxy.service - GenAI Proxy Container.
+okt 28 13:17:47 fedora podman[540585]: 2025-10-28 13:17:47.900497112 +0100 CET m=+0.049604471 container create 93bd592f4e75803bcd83467ef4f6eb444b84236ca03c5eb20e4b3158dab5438f (image=localhost/genai-proxy:latest, name=genai-proxy, io.buildah.version=1.41.5)
+
+```
 
 ## Restrict access to localhost only
 
@@ -622,3 +699,7 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
 The genai models are available in copilot **model** the drop down menu:
 
 ![alt text](images/image01.png)
+
+Make sure you disable **Use responses API** in VSCode(-insiders) settings: **Github > Copilot > Chat**
+
+![alt text](images/image03.png)
