@@ -302,7 +302,6 @@ Successfully tagged localhost/genai-proxy:latest
 
 okt 28 13:17:47 fedora systemd[1]: Started genai-proxy.service - GenAI Proxy Container.
 okt 28 13:17:47 fedora podman[540585]: 2025-10-28 13:17:47.900497112 +0100 CET m=+0.049604471 container create 93bd592f4e75803bcd83467ef4f6eb444b84236ca03c5eb20e4b3158dab5438f (image=localhost/genai-proxy:latest, name=genai-proxy, io.buildah.version=1.41.5)
-
 ```
 
 ## Restrict access to localhost only

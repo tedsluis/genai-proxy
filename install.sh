@@ -44,7 +44,16 @@ echo "==> Installing models.yaml"
 sudo install -m 0644 "$MODELS_SRC" "$MODELS_DEST"
 
 echo "==> Building container image (root storage)"
-sudo podman build -t genai-proxy:latest -f "$CONTAINERFILE" "$REPO_DIR"
+# Use proxy for build if HTTPS env is provided; fallback to common proxy envs
+BUILD_PROXY="${HTTPS:-${HTTPS_PROXY:-${https_proxy:-}}}"
+if [[ -n "$BUILD_PROXY" ]]; then
+  echo "Using proxy for build: $BUILD_PROXY"
+  # Pass proxy to both the host (for pulling base image) and into build steps (pip, etc.)
+  sudo env http_proxy="$BUILD_PROXY" https_proxy="$BUILD_PROXY" HTTP_PROXY="$BUILD_PROXY" HTTPS_PROXY="$BUILD_PROXY" \
+    podman build --http-proxy=true -t genai-proxy:latest -f "$CONTAINERFILE" "$REPO_DIR"
+else
+  sudo podman build -t genai-proxy:latest -f "$CONTAINERFILE" "$REPO_DIR"
+fi
 
 echo "==> Reloading systemd, enabling and starting genai-proxy"
 sudo systemctl daemon-reload
