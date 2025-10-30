@@ -62,3 +62,10 @@ sudo systemctl restart genai-proxy || sudo systemctl start genai-proxy
 
 echo "==> Done"
 sudo systemctl --no-pager --full status genai-proxy || true
+
+echo
+echo "Notes:"
+echo "- To enable bearer auth, set a token before starting the service:"
+echo "    sudo sh -c 'echo Environment=AUTH_TOKEN=\"mijngeheimekey\" >> /etc/systemd/system/genai-proxy.service'"
+echo "  then run: sudo systemctl daemon-reload && sudo systemctl restart genai-proxy"
+echo "- Clients must then send: Authorization: Bearer <token> (not required for /health and /v1/health)"

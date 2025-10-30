@@ -50,6 +50,7 @@ The proxy can be used for OpenAI-compatible API's like:
 | `ALLOWED_ORIGINS` | `` | Comma-separated origins to allow via CORS (if set, CORS is enabled).
 | `LOG_STREAM_MAX_BYTES` | `0` | If >0, logs up to N bytes of streamed chunks.
 | `HTTPS_PROXY` | `` | Optional corporate HTTP/HTTPS proxy URL (e.g., `http://proxy.domain.org:8080`). Authentication is not supported.
+| `AUTH_TOKEN` | `` | Optional bearer token required for all requests except `/health` and `/v1/health`. If set, clients must send `Authorization: Bearer <token>`.
 
 #### Corporate proxy (HTTPS_PROXY)
 
@@ -397,7 +398,7 @@ $ curl -X GET http://127.0.0.1:8111/v1/models | jq
       "id": "gpt-5-mini",
       "object": "model",
       "created": 1759432253,
-      "owned_by": "genai"
+      "owned_by": "genai"z
     }
   ]
 }
@@ -406,7 +407,12 @@ $ curl -X GET http://127.0.0.1:8111/v1/models | jq
 ## Test chat completion using gpt-4.1
 
 ```bash
-$ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
+$ export AUTH_TOKEN="mijngeheimekey"
+$ curl -X POST http://127.0.0.1:8111/v1/chat/completions \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "X-Request-ID: test-001" \
+  -d '{
     "model": "gpt-4.1",
     "messages": [
       {"role": "system", "content": "You are a helpful assistant."},
@@ -513,7 +519,12 @@ $ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: app
 An example to create some python code.
 
 ```bash
-$ curl -X POST http://127.0.0.1:8111/v1/chat/completions   -H "Content-Type: application/json"   -H "X-Request-ID: test-001"   -d '{
+$ export AUTH_TOKEN="mijngeheimekey"
+$ curl -X POST http://127.0.0.1:8111/v1/chat/completions \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "X-Request-ID: test-001" \
+  -d '{
     "model": "gpt-5",
     "messages": [
       {"role": "system", "content": "you are a python develper."},
