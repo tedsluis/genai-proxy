@@ -25,6 +25,7 @@ ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(","
 # For streams, we do not log the body by default; optionally you can log the first N bytes:
 LOG_STREAM_MAX_BYTES = int(os.getenv("LOG_STREAM_MAX_BYTES", "0"))
 HTTPS_PROXY = os.getenv("HTTPS_PROXY")
+AUTH_TOKEN = os.getenv("AUTH_TOKEN")
 _PROXY_SCHEME = None
 _PROXY_NETLOC = None
 if HTTPS_PROXY:
@@ -74,6 +75,7 @@ logger.info(f"ALLOWED_ORIGINS={ALLOWED_ORIGINS}")
 logger.info(f"LOG_STREAM_MAX_BYTES={LOG_STREAM_MAX_BYTES}")
 logger.info(f"HTTPS_PROXY={_redact_proxy_url(HTTPS_PROXY)}")
 logger.info(f"PROXY_ENABLED={bool(HTTPS_PROXY)}")
+logger.info(f"AUTH_ENABLED={bool(AUTH_TOKEN)}")
 if HTTPS_PROXY:
     if _PROXY_SCHEME not in ("http", "https"):
         logger.warning(f"HTTPS_PROXY_SCHEME_UNSUPPORTED={_PROXY_SCHEME}")
@@ -93,6 +95,31 @@ def _safe_json_loads(body: bytes) -> Optional[dict]:
 # App
 # =========================
 app = FastAPI(title="GenAI Proxy", version="1.0.0")
+
+# =========================
+# Auth Middleware (Bearer token)
+# Applies to all routes except /health and /v1/health
+# =========================
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+    # Skip auth for health endpoints
+    if path in ("/health", "/v1/health"):
+        return await call_next(request)
+
+    # Enforce Authorization: Bearer <token> if AUTH_TOKEN is configured
+    if AUTH_TOKEN:
+        auth_header = request.headers.get("authorization")
+        valid = False
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):].strip()
+            valid = token == AUTH_TOKEN
+        if not valid:
+            client_ip = request.client.host if request.client else "unknown"
+            logger.warning(f"Unauthorized request from {client_ip} to {path}")
+            return JSONResponse(status_code=401, content={"error": "unauthorized"})
+
+    return await call_next(request)
 
 if ALLOWED_ORIGINS:
     app.add_middleware(
