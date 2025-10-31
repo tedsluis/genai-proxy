@@ -8,12 +8,11 @@ Environment=GENAI_SUBSCRIPTION_NAME=some-subscription-name
 Environment=GENAI_API_KEY=some-api-key
 Environment=GENAI_BASE_URL=https://gateway.apiportal.genai.nl/genai
 # Optional corporate proxy (no authentication)
-# Optional corporate proxy (no authentication)
 # Example: uncomment and set your proxy URL
 # Environment=HTTPS_PROXY=http://proxy.domain.org:8080
 # Optional bearer auth (if set, clients must send Authorization: Bearer <token>)
-# Example: uncomment and set your secret token
-# Environment=AUTH_TOKEN=mijngeheimekey
+# Example: uncomment and set your token (matches README example)
+# Environment=AUTH_TOKEN=change-me
 ExecStart=/usr/bin/podman run --replace \
     -p 127.0.0.1:8111:8111 \
     -v "/opt/genai-proxy/models.yaml:/app/models.yaml:z" \

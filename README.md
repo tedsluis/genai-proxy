@@ -119,7 +119,7 @@ INFO PROXY_ENABLED=True
 
 ## Build & Run instructions
 
-Clone this repo in your home directory en follow one of the instructions below:
+Clone this repo in your home directory and follow one of the instructions below:
 
 * Build & Run (rootless)
 * Build & Run as a systemd Service
@@ -177,7 +177,7 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8111 (Press CTRL+C to quit)
 
 ```
-note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
+note: the HTTPS_PROXY is optional, in case you need to use a corporate internet proxy.
 
 ## Run as a systemd Service
 
@@ -214,7 +214,7 @@ ExecStopPost=/usr/bin/podman rm genai-proxy
 [Install]
 WantedBy=multi-user.target
 ```
-note: the HTTPS_PROXY is optional, in case you need to use a corperated internet proxy.
+note: the HTTPS_PROXY is optional, in case you need to use a corporate internet proxy.
 
 **Usage:**
 1. Create genai-proxy.service and adjust the `Environment` variables.
@@ -305,13 +305,58 @@ okt 28 13:17:47 fedora systemd[1]: Started genai-proxy.service - GenAI Proxy Con
 okt 28 13:17:47 fedora podman[540585]: 2025-10-28 13:17:47.900497112 +0100 CET m=+0.049604471 container create 93bd592f4e75803bcd83467ef4f6eb444b84236ca03c5eb20e4b3158dab5438f (image=localhost/genai-proxy:latest, name=genai-proxy, io.buildah.version=1.41.5)
 ```
 
-## Restrict access to localhost only
+## Access modes
 
-The genai-proxy has no authentication and must therefor not be exposed to other hosts. Limit access strictly to the local machine (127.0.0.1).
+Choose one of the following secure deployment options:
+
+### 1) Local access only (no bearer token)
 
 - Bind the container to localhost only: use `-p 127.0.0.1:8111:8111` instead of `-p 8111:8111`.
-- Ensure your firewall blocks inbound connections to port `8111` from external networks (the port should not be reachable from outside the host).
-- If you decide to run **main.py** without container, make sure you run it like: `uvicorn main:app --host 127.0.0.1 --port 8111`
+- Ensure your firewall blocks inbound connections to port `8111` from external networks.
+- If you run without a container, bind Uvicorn to localhost: `uvicorn main:app --host 127.0.0.1 --port 8111`.
+
+This mode is recommended for single-user, on-device use. Do not expose the port to other hosts when `AUTH_TOKEN` is unset.
+
+### 2) Remote access with bearer token
+
+- Set `AUTH_TOKEN` to enable authentication. All endpoints except `/health` and `/v1/health` will require `Authorization: Bearer <token>`.
+- Expose the port to your network only as needed (for example, `-p 8111:8111` or `-p 0.0.0.0:8111:8111`).
+- Clients must include the `Authorization` header; omit it and requests will be rejected with `401`.
+
+Example (Podman/Docker):
+
+```bash
+podman run --replace -d \
+  -p 8111:8111 \
+  -v "$PWD/models.yaml:/app/models.yaml:z" \
+  -e AUTH_TOKEN="change-me" \
+  -e GENAI_SUBSCRIPTION_NAME="$GENAI_SUBSCRIPTION_NAME" \
+  -e GENAI_API_KEY="$GENAI_API_KEY" \
+  -e GENAI_BASE_URL="$GENAI_BASE_URL" \
+  --name genai-proxy \
+  genai-proxy:latest
+```
+
+Example (systemd snippet):
+
+```ini
+[Service]
+Environment=AUTH_TOKEN=change-me
+ExecStart=/usr/bin/podman run --replace \
+  -p 8111:8111 \
+  -v "/opt/genai-proxy/models.yaml:/app/models.yaml:z" \
+  -e AUTH_TOKEN=${AUTH_TOKEN} \
+  -e GENAI_SUBSCRIPTION_NAME=${GENAI_SUBSCRIPTION_NAME} \
+  -e GENAI_API_KEY=${GENAI_API_KEY} \
+  -e GENAI_BASE_URL=${GENAI_BASE_URL} \
+  --name genai-proxy \
+  genai-proxy:latest
+```
+
+Security tips:
+- Prefer limiting exposure to specific subnets or hosts via firewall rules.
+- Rotate `AUTH_TOKEN` periodically and when staff changes.
+- Avoid enabling verbose body logging (`LOG_BODIES=true`) in production.
 
 ## Models configuration (models.yaml)
 
@@ -527,7 +572,7 @@ $ curl -X POST http://127.0.0.1:8111/v1/chat/completions \
   -d '{
     "model": "gpt-5",
     "messages": [
-      {"role": "system", "content": "you are a python develper."},
+      {"role": "system", "content": "you are a python developer."},
       {"role": "user", "content": "write a simple script in python to test the chat completion openai-compatible endpoint http://127.0.0.1:8111/v1/chat/completions (model gpt-5, no api_key needed)."}
     ],
     "max_completion_tokens": 4000
