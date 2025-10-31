@@ -665,7 +665,7 @@ if __name__ == "__main__":
 
 note: The OpenAI-compatible provider for copilot is available in VSCode(-insiders) 1.105.0 and above.
 
-Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Chat**
+Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Chat**, **custom OAI models**:
 
 ![alt text](images/image02.png)
 
@@ -751,10 +751,16 @@ Edit VSCode(-insiders) settings to add the genai models: **Github > Copilot > Ch
 }
 ```
 
-The genai models are available in copilot **model** the drop down menu:
+In case your run the genai-proxy on a remote host with authenication:
 
-![alt text](images/image01.png)
+* change **"requiresAPIKey":** to true.
+* replace in your **"url":** 127.0.0.1 with your remote host.
+* add your genai-proxy token in vscode copilot Chat: Manage Language Models → select OpenAI Compatible → Manage API Key.
 
 Make sure you disable **Use responses API** in VSCode(-insiders) settings: **Github > Copilot > Chat**
 
 ![alt text](images/image03.png)
+
+The genai models are available in copilot **model** the drop down menu:
+
+![alt text](images/image01.png)
